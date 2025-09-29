@@ -3,17 +3,16 @@ import {
   signup,
   login,
   logout,
-  addRecording
+  addRecording,
+  getUserById  
 } from "../controllers/userController";
 
 const router = express.Router();
 
-// Auth routes
 router.post("/signup", signup);
 router.post("/login", login);
 router.post("/logout", logout);
-
-// Recording route
+router.get("/user/:userId", getUserById);
 router.post("/recording", addRecording);
 
 export default router;

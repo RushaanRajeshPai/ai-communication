@@ -4,7 +4,7 @@ import User, { IUser } from "../models/User";
 
 export const signup = async (req: Request, res: Response) => {
   try {
-    const { fullname, email, password, role } = req.body;
+    const { fullname, email, password, role, gender, age } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) return res.status(400).json({ message: "User already exists" });
@@ -16,6 +16,8 @@ export const signup = async (req: Request, res: Response) => {
       email,
       password: hashedPassword,
       role,
+      gender,
+      age,
       recordings: [],
       overall: {
         totalDuration: 0,
@@ -30,6 +32,7 @@ export const signup = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Server error", error: err });
   }
 };
+
 
 export const login = async (req: Request, res: Response) => {
   try {
@@ -51,22 +54,44 @@ export const logout = async (req: Request, res: Response) => {
   res.status(200).json({ message: "Logout successful" });
 };
 
+export const getUserById = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await User.findById(userId).select('-password'); // Exclude password
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    res.status(200).json({
+      fullname: user.fullname,
+      email: user.email,
+      role: user.role,
+      gender: user.gender,
+      age: user.age
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err });
+  }
+}; 
+
 export const addRecording = async (req: Request, res: Response) => {
   try {
-    const { userId, scenario, transcription, durationMinutes, feedback } = req.body;
+    const { userId, scenario, transcription, durationMinutes, feedback, fillerWordCount } = req.body;
 
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: "User not found" });
 
     // Push new recording
-    user.recordings.push({ scenario, transcription, durationMinutes, feedback });
+    user.recordings.push({ scenario, transcription, durationMinutes, feedback, fillerWordCount });
 
-    // Update overall stats (excluding avgConfidence for now)
+    // Update overall stats
     user.overall.totalDuration = user.recordings.reduce((sum, rec) => sum + rec.durationMinutes, 0);
     user.overall.avgRateOfSpeech =
       user.recordings.reduce((sum, rec) => sum + rec.feedback.rateOfSpeech, 0) / user.recordings.length;
     user.overall.avgFluencyScore =
       user.recordings.reduce((sum, rec) => sum + rec.feedback.fluencyScore, 0) / user.recordings.length;
+
+    user.overall.totalFillerWords =
+      user.recordings.reduce((sum, rec) => sum + (rec.fillerWordCount || 0), 0);
 
     await user.save();
     res.status(200).json({ message: "Recording added successfully", overall: user.overall });
@@ -74,4 +99,5 @@ export const addRecording = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Server error", error: err });
   }
 };
+
 
