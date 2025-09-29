@@ -1,12 +1,12 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-const Auth: React.FC = () => {
+const Scenario: React.FC = () => {
   const [isSignup, setIsSignup] = useState(false);
   const [fullname, setFullname] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("student");
+  const [role, setRole] = useState("student"); 
   const [message, setMessage] = useState("");
 
   const navigate = useNavigate();
@@ -34,15 +34,17 @@ const Auth: React.FC = () => {
 
       setMessage(data.message);
 
-      navigate("/scenario");
+      // Redirect after successful login
+      if (!isSignup) {
+        navigate("/scenario");
+      }
     } catch (err: any) {
       setMessage(err.message);
     }
   };
 
-
   return (
-    <div className="w-screen min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 via-white to-green-100 p-6">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 via-white to-green-100 p-6">
       <div className="bg-white shadow-xl rounded-2xl w-full max-w-md p-8">
         <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
           {isSignup ? "Create an Account" : "Welcome Back"}
@@ -111,7 +113,7 @@ const Auth: React.FC = () => {
         )}
 
         <p className="mt-6 text-center text-sm text-gray-600">
-          {isSignup ? "Already have an account?" : "Don't have an account?"}{" "}
+          {isSignup ? "Already have an account?" : "Don’t have an account?"}{" "}
           <button
             onClick={() => setIsSignup(!isSignup)}
             className="text-blue-600 font-medium hover:underline"
@@ -124,4 +126,4 @@ const Auth: React.FC = () => {
   );
 };
 
-export default Auth;
+export default Scenario;
