@@ -207,7 +207,7 @@ const Scenario: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'rgb(27, 31, 46)' }}>
+      <div className="w-screen min-h-screen flex items-center justify-center" style={{ backgroundColor: 'rgb(27, 31, 46)' }}>
         <div className="text-white text-xl">Loading...</div>
       </div>
     );
@@ -231,7 +231,7 @@ const Scenario: React.FC = () => {
               </div>
 
               <div className="hidden md:flex items-center justify-center flex-1 px-8">
-                <div className="relative rounded-full px-8 py-3 backdrop-blur-xl" style={{
+                <div className="relative rounded-full px-8 py-1 backdrop-blur-xl" style={{
                   backgroundColor: 'rgba(40, 45, 65, 0.6)',
                   border: '1px solid rgba(255, 255, 255, 0.1)',
                   boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
@@ -245,7 +245,7 @@ const Scenario: React.FC = () => {
                     >
                       <button
                         onClick={() => setShowScenarioDropdown(!showScenarioDropdown)}
-                        className="relative text-gray-300 hover:text-cyan-400 transition-all duration-300 flex items-center space-x-1 text-sm font-medium py-2 hover:scale-110 transform bg-transparent hover:border-cyan-400"
+                        className="relative text-gray-300 hover:text-cyan-400 transition-all duration-300 flex items-center space-x-1 text-md font-medium py-2 hover:scale-110 transform bg-transparent hover:border-cyan-400"
                       >
                         <span>Explore Scenarios</span>
                         <ChevronDown className="w-4 h-4" />
@@ -283,7 +283,7 @@ const Scenario: React.FC = () => {
                     >
                       <button
                         onClick={() => scrollToSection('about')}
-                        className="relative text-gray-300 hover:text-cyan-400 transition-all duration-300 text-sm font-medium py-2 hover:scale-110 transform bg-transparent hover:border-cyan-400"
+                        className="relative text-gray-300 hover:text-cyan-400 transition-all duration-300 text-md font-medium py-2 hover:scale-110 transform bg-transparent hover:border-cyan-400"
                       >
                         About Us
                         {hoveredNavItem === 'about' && (
@@ -299,7 +299,7 @@ const Scenario: React.FC = () => {
                     >
                       <button
                         onClick={() => scrollToSection('demo')}
-                        className="relative text-gray-300 hover:text-cyan-400 transition-all duration-300 text-sm py-2 hover:scale-110 transform bg-transparent hover:border-cyan-400"
+                        className="relative text-gray-300 hover:text-cyan-400 transition-all duration-300 text-md py-2 hover:scale-110 transform bg-transparent hover:border-cyan-400"
                       >
                         Demo
                         {hoveredNavItem === 'demo' && (
@@ -316,7 +316,7 @@ const Scenario: React.FC = () => {
                     >
                       <button
                         onClick={() => scrollToSection('footer')}
-                        className="relative text-gray-300 hover:text-cyan-400 transition-all duration-300 text-sm font-medium py-2 hover:scale-110 transform bg-transparent hover:border-cyan-400"
+                        className="relative text-gray-300 hover:text-cyan-400 transition-all duration-300 text-md font-medium py-2 hover:scale-110 transform bg-transparent hover:border-cyan-400"
                       >
                         Contact
                         {hoveredNavItem === 'contact' && (

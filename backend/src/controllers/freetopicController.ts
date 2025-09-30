@@ -221,13 +221,26 @@ export const processRecording = async (req: Request, res: Response) => {
     const durationMinutes = Number(durationSeconds) / 60;
     const rateOfSpeech = Math.max(1, Math.round(wordCount / Math.max(durationMinutes, 0.1)));
 
-    const fillerWords = ["uh", "um", "like", "you know", "hmm", "ah", "er", "so"];
+    const fillerWords = ["uh", "um", "like", "you know", "hmm", "ah", "er", "so", "and yeah", "and ya", "basically"];
     const fillerWordCount = words.filter((word: string) =>
       fillerWords.includes(word.toLowerCase().replace(/[.,!?]/g, ""))
     ).length;
 
     const fillerRatio = fillerWordCount / Math.max(wordCount, 1);
-    const fluencyScore = Math.max(1, Math.min(10, Math.round(10 - (fillerRatio * 50))));
+    // After computing wordCount, rateOfSpeech, fillerRatio
+let fluencyScore = Math.round(10 - fillerRatio * 50);
+
+// Penalize extremely short content
+if (wordCount < 30) fluencyScore = Math.min(fluencyScore, 5);
+
+// Penalize very slow or very fast rates
+if (rateOfSpeech < 70 || rateOfSpeech > 190) fluencyScore = Math.min(fluencyScore, 6);
+
+// Optional: penalize repeated tokens (basic repetition check)
+const uniqueRatio = new Set(words.map(w => w.toLowerCase())).size / Math.max(wordCount, 1);
+if (uniqueRatio < 0.6) fluencyScore = Math.min(fluencyScore, 6);
+
+fluencyScore = Math.max(1, Math.min(10, fluencyScore));
 
     console.log("Generating AI feedback...");
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
