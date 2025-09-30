@@ -393,7 +393,9 @@ const Scenario: React.FC = () => {
                   </linearGradient>
                 </defs>
                 <path
-                  d="M 150 150 Q 300 100, 450 150 T 850 150 M 850 150 Q 700 200, 550 250 T 150 450"
+                  d="M 150 150 Q 300 100, 450 150 T 850 150
+                     M 850 150 Q 700 200, 550 250 T 150 450
+                     M 150 450 Q 300 500, 450 450 T 850 450"
                   stroke="url(#roadGradient)"
                   strokeWidth="3"
                   fill="none"
@@ -427,14 +429,14 @@ const Scenario: React.FC = () => {
                   }
                 ].map((node, index) => (
                   <div
-                    key={index}
-                    className="relative backdrop-blur-xl rounded-3xl p-8 transition-all duration-300 hover:scale-105 group"
-                    style={{
-                      backgroundColor: 'rgba(40, 45, 65, 0.4)',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
-                    }}
-                  >
+                  key={index}
+                  className="relative backdrop-blur-xl rounded-3xl p-8 transition-all duration-300 hover:scale-105 group overflow-hidden"
+                  style={{
+                    backgroundColor: 'rgba(40, 45, 65, 0.4)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+                  }}
+                >
                     <div className="flex items-start space-x-6">
                       <div className={`flex-shrink-0 w-16 h-16 rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-lg bg-gradient-to-br ${node.gradient}`}>
                         {index + 1}
