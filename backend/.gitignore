@@ -22,3 +22,7 @@ Thumbs.db
 # Optional: IDE/editor files
 .vscode/
 .idea/
+
+# Custom Folders
+# Ignore the large language models
+models/
