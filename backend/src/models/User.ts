@@ -28,7 +28,7 @@ export interface IUser extends Document {
     avgConfidence?: string;
     avgRateOfSpeech: number;
     avgFluencyScore: number;
-    totalFillerWords: number; // new
+    totalFillerWords: number; 
   };
 }
 
@@ -51,8 +51,8 @@ const userSchema: Schema<IUser> = new Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   role: { type: String, enum: ["student", "work"], required: true },
-  gender: { type: String, enum: ["male", "female", "other"], required: true }, // new
-  age: { type: Number, required: true }, // new
+  gender: { type: String, enum: ["male", "female", "other"], required: true }, 
+  age: { type: Number, required: true }, 
   recordings: [recordingSchema],
   overall: {
     totalDuration: { type: Number, default: 0 },
