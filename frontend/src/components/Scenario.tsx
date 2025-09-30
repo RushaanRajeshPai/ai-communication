@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ChevronDown, User, LogOut, LayoutDashboard } from 'lucide-react';
 import whitelogo from "../assets/whitelogo.png"
 import bgImg from '../assets/bgImg.png'
+import sample from '../assets/sample.png'
 
 interface ScenarioOption {
   name: string;
@@ -469,7 +470,7 @@ const Scenario: React.FC = () => {
                 />
               </svg>
 
-              <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-16">
+              <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-16 hover:cursor-pointer">
                 {[
                   {
                     title: 'Choose a Scenario',
@@ -546,7 +547,9 @@ const Scenario: React.FC = () => {
                   <div className="aspect-video flex items-center justify-center" style={{
                     background: 'linear-gradient(135deg, rgba(103, 232, 249, 0.2) 0%, rgba(45, 152, 218, 0.2) 100%)'
                   }}>
-                    <span className="text-gray-500 text-sm">Scenario Preview</span>
+                    {/* <span className="text-gray-500 text-sm">Scenario Preview</span> */}
+                    <img src={sample} alt="sample image" className="w-full h-64 object-full" />
+
                   </div>
                   <div className="p-6">
                     <h3 className="text-xl font-semibold text-white group-hover:text-cyan-400 transition-colors">
