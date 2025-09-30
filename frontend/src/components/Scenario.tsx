@@ -157,7 +157,7 @@ const Scenario: React.FC = () => {
                   >
                     <button
                       onClick={() => setShowScenarioDropdown(!showScenarioDropdown)}
-                      className="relative text-gray-300 hover:text-cyan-400 transition-all duration-300 flex items-center space-x-1 text-sm font-medium py-2 hover:scale-110 transform bg-transparent"
+                      className="relative text-gray-300 hover:text-cyan-400 transition-all duration-300 flex items-center space-x-1 text-sm font-medium py-2 hover:scale-110 transform bg-transparent hover:border-cyan-400"
                     >
                       <span>Explore Scenarios</span>
                       <ChevronDown className="w-4 h-4" />
@@ -174,7 +174,7 @@ const Scenario: React.FC = () => {
                           <button
                             key={index}
                             onClick={() => handleNavigate(scenario.path)}
-                            className="w-full text-left px-5 py-2.5 text-gray-300 hover:text-white transition-all duration-200 text-sm bg-transparent"
+                            className="w-full text-left px-5 py-2.5 text-gray-300 hover:text-white transition-all duration-200 text-sm bg-transparent hover:border-cyan-400"
                             style={{ 
                               borderLeft: '3px solid transparent'
                             }}
@@ -196,7 +196,7 @@ const Scenario: React.FC = () => {
                   >
                     <button
                       onClick={() => scrollToSection('about')}
-                      className="relative text-gray-300 hover:text-cyan-400 transition-all duration-300 text-sm font-medium py-2 hover:scale-110 transform bg-transparent"
+                      className="relative text-gray-300 hover:text-cyan-400 transition-all duration-300 text-sm font-medium py-2 hover:scale-110 transform bg-transparent hover:border-cyan-400"
                     >
                       About Us
                       {hoveredNavItem === 'about' && (
@@ -213,7 +213,7 @@ const Scenario: React.FC = () => {
                   >
                     <button
                       onClick={() => scrollToSection('demo')}
-                      className="relative text-gray-300 hover:text-cyan-400 transition-all duration-300 text-sm py-2 hover:scale-110 transform bg-transparent"
+                      className="relative text-gray-300 hover:text-cyan-400 transition-all duration-300 text-sm py-2 hover:scale-110 transform bg-transparent hover:border-cyan-400"
                     >
                       Demo
                       {hoveredNavItem === 'demo' && (
@@ -230,7 +230,7 @@ const Scenario: React.FC = () => {
                   >
                     <button
                       onClick={() => scrollToSection('footer')}
-                      className="relative text-gray-300 hover:text-cyan-400 transition-all duration-300 text-sm font-medium py-2 hover:scale-110 transform bg-transparent"
+                      className="relative text-gray-300 hover:text-cyan-400 transition-all duration-300 text-sm font-medium py-2 hover:scale-110 transform bg-transparent hover:border-cyan-400"
                     >
                       Contact
                       {hoveredNavItem === 'contact' && (
@@ -264,7 +264,7 @@ const Scenario: React.FC = () => {
                 }}>
                   <button
                     onClick={() => handleNavigate('/dashboard')}
-                    className="w-full text-left px-4 py-2.5 text-gray-300 hover:text-white transition-colors text-sm flex items-center space-x-3"
+                    className="w-full text-left px-4 py-2.5 text-gray-300 hover:text-cyan-400 transition-colors text-sm flex items-center space-x-3 hover:border-transparent "
                     style={{ backgroundColor: 'rgba(30, 35, 50, 0.95)' }}
                   >
                     <LayoutDashboard className="w-4 h-4" />
@@ -274,7 +274,7 @@ const Scenario: React.FC = () => {
                   <button
                     onClick={handleLogout}
                     style={{ backgroundColor: 'rgba(30, 35, 50, 0.95)' }}
-                    className="w-full text-left px-4 py-2.5 text-gray-300 hover:text-red-400 transition-colors text-sm flex items-center space-x-3"
+                    className="w-full text-left px-4 py-2.5 text-gray-300 hover:text-red-400 transition-colors text-sm flex items-center space-x-3 hover:border-transparent"
                   >
                     <LogOut className="w-4 h-4" />
                     <span>Logout</span>
