@@ -445,13 +445,13 @@ const FreeTopic = () => {
 
         {stage === 'feedback' && feedbackData && (
           <div className="max-w-6xl mx-auto space-y-8 pb-12">
-            <h1 className="text-3xl md:text-4xl font-bold text-center mb-8">Your Speech Analysis</h1>
+            <h1 className="text-3xl md:text-4xl font-bold text-center mt-12 mb-8">Your Speech Analysis</h1>
 
             {/* Insights Pentagon Chart */}
             <div className="bg-gradient-to-b from-gray-800 to-black rounded-2xl p-6 md:p-8">
               <h2 className="text-2xl font-bold  text-center">Performance Insights</h2>
               <PentagonChart metrics={feedbackData.metrics} />
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 -mt-12">
                 <div className="bg-blue-600/20 rounded-lg p-4 text-center">
                   <div className="text-3xl font-bold">{feedbackData.metrics.rateOfSpeech}</div>
                   <div className="text-sm text-gray-300">Words/Min</div>
