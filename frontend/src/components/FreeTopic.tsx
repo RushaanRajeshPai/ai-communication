@@ -188,15 +188,15 @@ const FreeTopic = () => {
 
     const points = [
       { label: 'Confidence', value: confidenceScore },
-      { label: 'Rate of Speech', value: rateScore },
+      { label: 'Speech Rate', value: rateScore },
       { label: 'Fluency', value: metrics.fluencyScore },
       { label: 'Filler Words', value: fillerScore },
       { label: 'Duration', value: Math.min(10, metrics.durationMinutes * 5) },
     ];
 
-    const size = 300;
+    const size = 450;
     const center = size / 2;
-    const radius = size / 2 - 40;
+    const radius = size / 2 - 90;
     const angleStep = (Math.PI * 2) / points.length;
 
     const calculatePoint = (index: number, value: number) => {
@@ -216,46 +216,106 @@ const FreeTopic = () => {
 
     return (
       <div className="flex flex-col items-center">
-        <svg width={size} height={size} className="mb-4">
-          <path d={maxPathData} fill="none" stroke="#e5e7eb" strokeWidth="1" />
-          {maxPoints.map((point, i) => (
-            <line key={i} x1={center} y1={center} x2={point.x} y2={point.y} stroke="#e5e7eb" strokeWidth="1" />
-          ))}
-          <path d={pathData} fill="rgba(59, 130, 246, 0.3)" stroke="#3b82f6" strokeWidth="2" />
-          {dataPoints.map((point, i) => (
-            <circle key={i} cx={point.x} cy={point.y} r="4" fill="#3b82f6" />
-          ))}
-          {maxPoints.map((point, i) => {
-            const angle = angleStep * i - Math.PI / 2;
-            const cos = Math.cos(angle);
-            const sin = Math.sin(angle);
+        <div className="relative" style={{ 
+          background: 'radial-gradient(circle, rgba(30, 58, 138, 0.4) 0%, rgba(15, 23, 42, 0.2) 70%)',
+          borderRadius: '20px',
+          padding: '40px'
+        }}>
+          <svg width={size} height={size} className="mb-4">
+            <defs>
+              <filter id="glow">
+                <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                <feMerge>
+                  <feMergeNode in="coloredBlur"/>
+                  <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+              </filter>
+              <linearGradient id="blueGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#60a5fa" />
+                <stop offset="100%" stopColor="#3b82f6" />
+              </linearGradient>
+            </defs>
+            
+            {/* Outer pentagon frame */}
+            <path d={maxPathData} fill="none" stroke="rgba(71, 85, 105, 0.5)" strokeWidth="2" />
+            
+            {/* Grid lines from center */}
+            {maxPoints.map((point, i) => (
+              <line 
+                key={i} 
+                x1={center} 
+                y1={center} 
+                x2={point.x} 
+                y2={point.y} 
+                stroke="rgba(71, 85, 105, 0.3)" 
+                strokeWidth="1" 
+              />
+            ))}
+            
+            {/* Inner grid rings */}
+            {[0.33, 0.66].map((scale, idx) => {
+              const ringPoints = points.map((_, i) => calculatePoint(i, 10 * scale));
+              const ringPath = ringPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ') + ' Z';
+              return (
+                <path 
+                  key={idx} 
+                  d={ringPath} 
+                  fill="none" 
+                  stroke="rgba(71, 85, 105, 0.2)" 
+                  strokeWidth="1" 
+                />
+              );
+            })}
+            
+            {/* Data area with glow */}
+            <path 
+              d={pathData} 
+              fill="url(#blueGradient)" 
+              fillOpacity="0.3" 
+              stroke="#3b82f6" 
+              strokeWidth="2.5"
+              filter="url(#glow)"
+            />
+            
+            {/* Data points */}
+            {dataPoints.map((point, i) => (
+              <g key={i}>
+                <circle cx={point.x} cy={point.y} r="6" fill="#1e3a8a" opacity="0.5" />
+                <circle cx={point.x} cy={point.y} r="4" fill="#60a5fa" filter="url(#glow)" />
+              </g>
+            ))}
+            
+            {/* Labels */}
+            {maxPoints.map((point, i) => {
+              const angle = angleStep * i - Math.PI / 2;
+              const cos = Math.cos(angle);
+              const sin = Math.sin(angle);
+              const labelR = radius + 35;
+              const labelX = center + labelR * cos;
+              const labelY = center + labelR * sin;
+              
+              // Special adjustments
+              const adjustedX = i === 1 ? labelX + 12 : labelX;
+              const adjustedY = i === 0 ? labelY + 8 : labelY; // Move Confidence down
+              const anchor = 'middle';
 
-            // Place labels just outside the polygon
-            const labelR = radius + 29;
-            const labelX = center + labelR * cos;
-            const labelY = center + labelR * sin;
-
-            // Anchor so text flows inward (prevents clipping)
-            const anchor = cos > 0.35 ? 'end' : cos < -0.35 ? 'start' : 'middle';
-            const dx = cos * 6;
-            const dy = sin * 4;
-
-            return (
-              <text
-                key={i}
-                x={labelX}
-                y={labelY}
-                dx={dx}
-                dy={dy}
-                textAnchor={anchor}
-                dominantBaseline="middle"
-                className="text-[15px] font-medium fill-white/95"
-              >
-                {points[i].label}
-              </text>
-            );
-          })}
-        </svg>
+              return (
+                <text
+                  key={i}
+                  x={adjustedX}
+                  y={adjustedY}
+                  textAnchor={anchor}
+                  dominantBaseline="middle"
+                  className="text-base font-medium"
+                  fill="#cbd5e1"
+                  style={{ letterSpacing: '0.5px' }}
+                >
+                  {points[i].label}
+                </text>
+              );
+            })}
+          </svg>
+        </div>
       </div>
     );
   };

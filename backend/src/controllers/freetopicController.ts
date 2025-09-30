@@ -228,18 +228,72 @@ export const processRecording = async (req: Request, res: Response) => {
 
     const fillerRatio = fillerWordCount / Math.max(wordCount, 1);
     // After computing wordCount, rateOfSpeech, fillerRatio
-let fluencyScore = Math.round(10 - fillerRatio * 50);
+// After computing wordCount, rateOfSpeech, fillerRatio
+let fluencyScore = 10 - fillerRatio * 60; // stronger filler penalty than before
 
-// Penalize extremely short content
-if (wordCount < 30) fluencyScore = Math.min(fluencyScore, 5);
+// Normalize inputs we’ll reuse
+const normalizedWords = words.map(w => w.toLowerCase().replace(/[^a-z']/g, '')).filter(Boolean);
+const uniqueWords = new Set(normalizedWords);
+const uniqueRatio = uniqueWords.size / Math.max(normalizedWords.length, 1);
 
-// Penalize very slow or very fast rates
-if (rateOfSpeech < 70 || rateOfSpeech > 190) fluencyScore = Math.min(fluencyScore, 6);
+// Repetition: longest consecutive run of the same token
+let maxRun = 1, run = 1;
+for (let i = 1; i < normalizedWords.length; i++) {
+  if (normalizedWords[i] === normalizedWords[i - 1]) run++;
+  else { if (run > maxRun) maxRun = run; run = 1; }
+}
+if (run > maxRun) maxRun = run;
 
-// Optional: penalize repeated tokens (basic repetition check)
-const uniqueRatio = new Set(words.map(w => w.toLowerCase())).size / Math.max(wordCount, 1);
-if (uniqueRatio < 0.6) fluencyScore = Math.min(fluencyScore, 6);
+// Bigram diversity
+let distinctBigrams = 0;
+if (normalizedWords.length > 1) {
+  const bigrams = new Set<string>();
+  for (let i = 1; i < normalizedWords.length; i++) {
+    bigrams.add(`${normalizedWords[i - 1]} ${normalizedWords[i]}`);
+  }
+  distinctBigrams = bigrams.size;
+}
+const bigramRatio = normalizedWords.length > 1 ? distinctBigrams / (normalizedWords.length - 1) : 0;
 
+// Average word length
+const totalChars = normalizedWords.reduce((s, w) => s + w.length, 0);
+const avgWordLen = normalizedWords.length ? totalChars / normalizedWords.length : 0;
+
+// Non-alpha ratio (punishes gibberish/noisy tokens)
+const raw = transcribedText;
+const alphaChars = (raw.match(/[a-z]/gi) || []).length;
+const nonAlphaChars = raw.replace(/\s/g, '').length - alphaChars;
+const nonAlphaRatio = (nonAlphaChars) / Math.max(alphaChars + nonAlphaChars, 1);
+
+// Apply strict caps
+function cap(score: number, maxCap: number) { return Math.min(score, maxCap); }
+
+// Content length caps
+if (wordCount < 30) fluencyScore = cap(fluencyScore, 4);
+else if (wordCount < 60) fluencyScore = cap(fluencyScore, 5);
+else if (wordCount < 100) fluencyScore = cap(fluencyScore, 6);
+
+// Speaking rate caps (tighter band for “natural” rate)
+if (rateOfSpeech < 80 || rateOfSpeech > 180) fluencyScore = cap(fluencyScore, 5);
+if (rateOfSpeech < 70 || rateOfSpeech > 200) fluencyScore = cap(fluencyScore, 4);
+
+// Repetition caps
+if (maxRun >= 6) fluencyScore = cap(fluencyScore, 4);
+else if (maxRun >= 4) fluencyScore = cap(fluencyScore, 5);
+
+// Diversity caps
+if (uniqueRatio < 0.55) fluencyScore = cap(fluencyScore, 4);
+else if (uniqueRatio < 0.70) fluencyScore = cap(fluencyScore, 5);
+
+if (bigramRatio < 0.40) fluencyScore = cap(fluencyScore, 4);
+else if (bigramRatio < 0.60) fluencyScore = cap(fluencyScore, 5);
+
+// Gibberish-ish cues
+if (avgWordLen < 3.6) fluencyScore = cap(fluencyScore, 6);
+if (nonAlphaRatio > 0.15) fluencyScore = cap(fluencyScore, 5);
+
+// Finalize
+fluencyScore = Math.round(fluencyScore);
 fluencyScore = Math.max(1, Math.min(10, fluencyScore));
 
     console.log("Generating AI feedback...");
