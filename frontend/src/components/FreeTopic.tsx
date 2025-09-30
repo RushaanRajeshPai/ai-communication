@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { Mic, Square, Check, Loader2 } from 'lucide-react';
+import { Mic, Square, Check, Loader2, X } from 'lucide-react';
+import whitelogo from "../assets/whitelogo.png"
 
 interface Metrics {
   rateOfSpeech: number;
@@ -39,33 +40,6 @@ const FreeTopic = () => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerIntervalRef = useRef<number | null>(null);
-
-  // Animated threads background
-  const ThreadsBackground = () => {
-    return (
-      <div className="fixed inset-0 overflow-hidden pointer-events-none opacity-20">
-        {[...Array(40)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute h-px bg-gradient-to-r from-transparent via-blue-400 to-transparent"
-            style={{
-              top: `${(i * 100) / 40}%`,
-              left: '-100%',
-              width: '200%',
-              animation: `slideRight ${10 + Math.random() * 10}s linear infinite`,
-              animationDelay: `${Math.random() * 5}s`,
-            }}
-          />
-        ))}
-        <style>{`
-          @keyframes slideRight {
-            from { transform: translateX(0); }
-            to { transform: translateX(50%); }
-          }
-        `}</style>
-      </div>
-    );
-  };
 
   const fetchTopic = async () => {
     try {
@@ -182,23 +156,25 @@ const FreeTopic = () => {
   };
 
   const PentagonChart = ({ metrics }: { metrics: Metrics }) => {
-    const confidenceScore = metrics.confidenceCategory === 'confident' ? 8 : metrics.confidenceCategory === 'monotone' ? 5 : 3;
+    const confidenceScore =
+      metrics.confidenceCategory === 'confident' ? 8 :
+      metrics.confidenceCategory === 'monotone' ? 5 : 3;
     const fillerScore = Math.max(0, 10 - metrics.fillerWordCount);
     const rateScore = Math.min(10, Math.max(0, (metrics.rateOfSpeech / 150) * 10));
-
+  
     const points = [
-      { label: 'Confidence', value: confidenceScore },
-      { label: 'Speech Rate', value: rateScore },
-      { label: 'Fluency', value: metrics.fluencyScore },
-      { label: 'Filler Words', value: fillerScore },
-      { label: 'Duration', value: Math.min(10, metrics.durationMinutes * 5) },
+      { label: 'Confidence', value: confidenceScore, tooltip: `Confidence: ${metrics.confidenceCategory}` },
+      { label: 'Speech Rate', value: rateScore, tooltip: `Speech Rate: ${metrics.rateOfSpeech} WPM` },
+      { label: 'Fluency', value: metrics.fluencyScore, tooltip: `Fluency Score: ${metrics.fluencyScore}/10` },
+      { label: 'Filler Words', value: fillerScore, tooltip: `Filler Words: ${metrics.fillerWordCount}` },
+      { label: 'Duration', value: Math.min(10, metrics.durationMinutes * 5), tooltip: `Duration: ${Math.round(metrics.durationMinutes * 60)} sec` },
     ];
-
+  
     const size = 450;
     const center = size / 2;
     const radius = size / 2 - 90;
     const angleStep = (Math.PI * 2) / points.length;
-
+  
     const calculatePoint = (index: number, value: number) => {
       const angle = angleStep * index - Math.PI / 2;
       const r = (value / 10) * radius;
@@ -207,118 +183,143 @@ const FreeTopic = () => {
         y: center + r * Math.sin(angle),
       };
     };
-
+  
     const dataPoints = points.map((p, i) => calculatePoint(i, p.value));
     const maxPoints = points.map((_, i) => calculatePoint(i, 10));
-
     const pathData = dataPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ') + ' Z';
-    const maxPathData = maxPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ') + ' Z';
-
+    const maxPathData = maxPoints
+    .map((point, i) => `${i === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
+    .join(' ') + ' Z';  
+  
+    const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  
     return (
-      <div className="flex flex-col items-center">
-        <div className="relative" style={{ 
-          background: 'radial-gradient(circle, rgba(30, 58, 138, 0.4) 0%, rgba(15, 23, 42, 0.2) 70%)',
-          borderRadius: '20px',
-          padding: '40px'
-        }}>
-          <svg width={size} height={size} className="mb-4">
-            <defs>
-              <filter id="glow">
-                <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-                <feMerge>
-                  <feMergeNode in="coloredBlur"/>
-                  <feMergeNode in="SourceGraphic"/>
-                </feMerge>
-              </filter>
-              <linearGradient id="blueGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#60a5fa" />
-                <stop offset="100%" stopColor="#3b82f6" />
-              </linearGradient>
-            </defs>
-            
-            {/* Outer pentagon frame */}
-            <path d={maxPathData} fill="none" stroke="rgba(71, 85, 105, 0.5)" strokeWidth="2" />
-            
-            {/* Grid lines from center */}
-            {maxPoints.map((point, i) => (
-              <line 
-                key={i} 
-                x1={center} 
-                y1={center} 
-                x2={point.x} 
-                y2={point.y} 
-                stroke="rgba(71, 85, 105, 0.3)" 
-                strokeWidth="1" 
-              />
-            ))}
-            
-            {/* Inner grid rings */}
-            {[0.33, 0.66].map((scale, idx) => {
-              const ringPoints = points.map((_, i) => calculatePoint(i, 10 * scale));
-              const ringPath = ringPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ') + ' Z';
-              return (
-                <path 
-                  key={idx} 
-                  d={ringPath} 
-                  fill="none" 
-                  stroke="rgba(71, 85, 105, 0.2)" 
-                  strokeWidth="1" 
-                />
-              );
-            })}
-            
-            {/* Data area with glow */}
-            <path 
-              d={pathData} 
-              fill="url(#blueGradient)" 
-              fillOpacity="0.3" 
-              stroke="#3b82f6" 
-              strokeWidth="2.5"
-              filter="url(#glow)"
+      <div className="flex flex-col items-center relative">
+        <svg width={size} height={size} className="mb-4">
+          <defs>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+              <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+            <linearGradient id="tooltipGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.8"/>
+              <stop offset="100%" stopColor="#60a5fa" stopOpacity="0.8"/>
+            </linearGradient>
+          </defs>
+  
+          {/* Outer pentagon frame */}
+          <path d={maxPathData} fill="none" stroke="rgba(71, 85, 105, 0.5)" strokeWidth="2" />
+  
+          {/* Grid lines from center */}
+          {maxPoints.map((point, i) => (
+            <line 
+              key={i} 
+              x1={center} 
+              y1={center} 
+              x2={point.x} 
+              y2={point.y} 
+              stroke="rgba(40, 50, 65, 0.5)" 
+              strokeWidth="2" 
             />
-            
-            {/* Data points */}
-            {dataPoints.map((point, i) => (
-              <g key={i}>
-                <circle cx={point.x} cy={point.y} r="6" fill="#1e3a8a" opacity="0.5" />
-                <circle cx={point.x} cy={point.y} r="4" fill="#60a5fa" filter="url(#glow)" />
-              </g>
-            ))}
-            
-            {/* Labels */}
-            {maxPoints.map((point, i) => {
-              const angle = angleStep * i - Math.PI / 2;
-              const cos = Math.cos(angle);
-              const sin = Math.sin(angle);
-              const labelR = radius + 35;
-              const labelX = center + labelR * cos;
-              const labelY = center + labelR * sin;
-              
-              // Special adjustments
-              const adjustedX = i === 1 ? labelX + 12 : labelX;
-              const adjustedY = i === 0 ? labelY + 8 : labelY; // Move Confidence down
-              const anchor = 'middle';
-
-              return (
-                <text
-                  key={i}
-                  x={adjustedX}
-                  y={adjustedY}
-                  textAnchor={anchor}
-                  dominantBaseline="middle"
-                  className="text-base font-medium"
-                  fill="#cbd5e1"
-                  style={{ letterSpacing: '0.5px' }}
-                >
-                  {points[i].label}
-                </text>
-              );
-            })}
-          </svg>
-        </div>
+          ))}
+  
+          {/* Inner grid rings */}
+          {[0.33, 0.66, 1].map((scale, idx) => {
+            const ringPoints = points.map((_, i) => calculatePoint(i, 10 * scale));
+            const ringPath = ringPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ') + ' Z';
+            return (
+              <path
+                key={idx}
+                d={ringPath}
+                fill="rgba(148, 163, 184, 0.1)"
+                stroke="rgba(40, 50, 65, 0.5)"
+                strokeWidth="2"
+              />
+            );
+          })}
+  
+          {/* Data polygon */}
+          <path 
+            d={pathData} 
+            fill="rgba(96, 165, 250, 0.4)" 
+            stroke="#3b82f6" 
+            strokeWidth="2.5"
+            filter="url(#glow)"
+          />
+  
+          {/* Data points with hover tooltips */}
+          {dataPoints.map((point, i) => (
+            <g
+              key={i}
+              onMouseEnter={() => setHoveredIndex(i)}
+              onMouseLeave={() => setHoveredIndex(null)}
+              style={{ cursor: 'pointer' }}
+            >
+              <circle cx={point.x} cy={point.y} r="6" fill="#1e3a8a" opacity="0.5" />
+              <circle cx={point.x} cy={point.y} r="4" fill="#60a5fa" filter="url(#glow)" />
+  
+              {hoveredIndex === i && (
+                <g>
+                  <rect
+                    x={point.x + 12}
+                    y={point.y - 28}
+                    width={150}
+                    height={28}
+                    rx={6}
+                    fill="url(#tooltipGradient)"
+                    stroke="#ffffff55"
+                    strokeWidth={1}
+                  />
+                  <text
+                    x={point.x + 18}
+                    y={point.y - 10}
+                    fill="white"
+                    fontSize="13"
+                    fontWeight="bold"
+                    style={{ pointerEvents: 'none' }}
+                  >
+                    {points[i].tooltip}
+                  </text>
+                </g>
+              )}
+            </g>
+          ))}
+  
+          {/* Labels */}
+          {maxPoints.map((point, i) => {
+            const angle = angleStep * i - Math.PI / 2;
+            const cos = Math.cos(angle);
+            const sin = Math.sin(angle);
+            const labelR = radius + 35;
+            const labelX = center + labelR * cos;
+            const labelY = center + labelR * sin;
+  
+            const adjustedX = i === 1 ? labelX + 12 : labelX;
+            const adjustedY = i === 0 ? labelY + 8 : labelY;
+  
+            return (
+              <text
+                key={i}
+                x={adjustedX}
+                y={adjustedY}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                className="text-base font-medium"
+                fill="#cbd5e1"
+                style={{ letterSpacing: '0.5px' }}
+              >
+                {points[i].label}
+              </text>
+            );
+          })}
+        </svg>
       </div>
     );
   };
+  
 
   useEffect(() => {
     return () => {
@@ -335,9 +336,20 @@ const FreeTopic = () => {
   };
 
   return (
-    <div className="w-screen min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white relative overflow-hidden">
-      <ThreadsBackground />
-
+    <div className="w-screen min-h-screen  text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, rgb(27, 31, 46) 0%, rgb(20, 24, 38) 50%, rgb(15, 18, 30) 100%)' }}>
+      {/* <ThreadsBackground /> */}
+      <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md" style={{ backgroundColor: 'rgba(27, 31, 46, 0.8)', borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-20">
+              <div className="flex-shrink-0">
+                <div className="w-32 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)' }}>
+                  <img src={whitelogo}
+                    alt="" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </nav>
       <div className="relative z-10 container mx-auto px-4 py-8 md:py-16">
         {stage === 'initial' && (
           <div className="flex flex-col items-center justify-center min-h-[80vh] text-center">
@@ -436,10 +448,10 @@ const FreeTopic = () => {
             <h1 className="text-3xl md:text-4xl font-bold text-center mb-8">Your Speech Analysis</h1>
 
             {/* Insights Pentagon Chart */}
-            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 md:p-8 border border-white/20">
-              <h2 className="text-2xl font-bold mb-6 text-center">Performance Insights</h2>
+            <div className="bg-gradient-to-b from-gray-800 to-black rounded-2xl p-6 md:p-8">
+              <h2 className="text-2xl font-bold  text-center">Performance Insights</h2>
               <PentagonChart metrics={feedbackData.metrics} />
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-blue-600/20 rounded-lg p-4 text-center">
                   <div className="text-3xl font-bold">{feedbackData.metrics.rateOfSpeech}</div>
                   <div className="text-sm text-gray-300">Words/Min</div>
@@ -450,7 +462,7 @@ const FreeTopic = () => {
                 </div>
                 <div className="bg-green-600/20 rounded-lg p-4 text-center">
                   <div className="text-3xl font-bold capitalize">{feedbackData.metrics.confidenceCategory}</div>
-                  <div className="text-sm text-gray-300">Confidence</div>
+                  <div className="text-sm text-gray-300">Confidence Category</div>
                 </div>
                 <div className="bg-orange-600/20 rounded-lg p-4 text-center">
                   <div className="text-3xl font-bold">{feedbackData.metrics.fillerWordCount}</div>
@@ -477,11 +489,13 @@ const FreeTopic = () => {
               </div>
 
               <div className="bg-orange-900/30 backdrop-blur-lg rounded-2xl p-6 border border-orange-500/30">
-                <h3 className="text-xl font-bold mb-4">Areas for Improvement</h3>
+                <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                <X className="text-red-400" />
+                Areas for Improvement</h3>
                 <ul className="space-y-3">
                   {feedbackData.feedback.areasForImprovement.map((point, i) => (
                     <li key={i} className="flex gap-3">
-                      <span className="text-orange-400 font-bold">•</span>
+                      <span className="text-red-400 font-bold">•</span>
                       <span>{point}</span>
                     </li>
                   ))}
@@ -491,7 +505,7 @@ const FreeTopic = () => {
 
             {/* Sentence Improvements */}
             {feedbackData.feedback.sentenceImprovements.length > 0 && (
-              <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 md:p-8 border border-white/20">
+              <div className="bg-gradient-to-b from-gray-800 to-black backdrop-blur-lg rounded-2xl p-6 md:p-8">
                 <h3 className="text-2xl font-bold mb-6">Sentence Enhancements</h3>
                 <div className="space-y-6">
                   {feedbackData.feedback.sentenceImprovements.map((item, i) => (
