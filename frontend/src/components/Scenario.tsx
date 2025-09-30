@@ -439,13 +439,13 @@ const Scenario: React.FC = () => {
         </section>
 
         {/* What We Do Section */}
-        <section id="demo" className="py-20 px-4 sm:px-6 lg:px-8 mb-60">
+        <section id="demo" className="py-20 px-4 sm:px-6 lg:px-8 mb-64">
           <div className="max-w-7xl mx-auto">
             <h1 className="text-4xl sm:text-5xl font-bold text-center text-white mb-20">
               What do we do?
             </h1>
 
-            <div className="relative max-w-6xl mx-auto pb-64 lg:pb-[26rem]" ref={roadmapRef}>
+            <div className="relative max-w-6xl mx-auto pb-8 lg:pb-12" ref={roadmapRef}>
               <svg
                 className="absolute inset-0 w-full h-full hidden lg:block pointer-events-none"
                 viewBox={`0 0 ${svgSize.w} ${svgSize.h}`}
@@ -525,7 +525,7 @@ const Scenario: React.FC = () => {
         </section>
 
         {/* Scenarios Section */}
-        <section id="scenarios" className="py-20 px-4 sm:px-6 lg:px-8">
+        <section id="scenarios" className="px-4 sm:px-6 lg:px-8 pb-20">
           <div className="max-w-7xl mx-auto">
             <h1 className="text-4xl sm:text-5xl font-bold text-center text-white mb-16">
               Scenarios we Provide
