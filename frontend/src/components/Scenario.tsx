@@ -72,14 +72,12 @@ const Scenario: React.FC = () => {
       case 'exiting':
         return 'opacity-0 translate-y-4';
       default:
-        return 'opacity-100 translate-y-0'; 
+        return 'opacity-100 translate-y-0';
     }
   };
 
   const scenarioDropdownRef = useRef<HTMLDivElement>(null);
   const userDropdownRef = useRef<HTMLDivElement>(null);
-
-  // Roadmap wiring
 
   useEffect(() => {
     fetchUserData();
@@ -109,38 +107,35 @@ const Scenario: React.FC = () => {
 
       const [r1, r2, r3, r4] = cards.map(c => rel(c!.getBoundingClientRect()));
 
-      // Connection points for the path
       const p1_out = { x: r1.right, y: r1.top + r1.height * 0.5 };
-      const p2_in = { x: r2.left, y: r2.top + r2.height * 0.5 };
-      
-      const p2_out = { x: r2.left + r2.width * 0.5, y: r2.bottom };
+      const p2_in = { x: r2.left + r2.width * 0.5, y: r2.top };
+
+      const p2_out = { x: r2.left, y: r2.top + r2.height * 0.5 };
       const p3_in = { x: r3.left + r3.width * 0.5, y: r3.top };
-      
+
       const p3_out = { x: r3.right, y: r3.top + r3.height * 0.5 };
       const p4_in = { x: r4.left, y: r4.top + r4.height * 0.5 };
 
-      // Create smooth bezier curves
-      const curve1 = `M ${p1_out.x} ${p1_out.y} C ${p1_out.x + 80} ${p1_out.y}, ${p2_in.x - 80} ${p2_in.y}, ${p2_in.x} ${p2_in.y}`;
-      const curve2 = `M ${p2_out.x} ${p2_out.y} C ${p2_out.x} ${p2_out.y + 60}, ${p3_in.x} ${p3_in.y - 60}, ${p3_in.x} ${p3_in.y}`;
+      const curve1 = `M ${p1_out.x} ${p1_out.y} C ${p1_out.x + 100} ${p1_out.y - 40}, ${p2_in.x + 40} ${p2_in.y - 80}, ${p2_in.x} ${p2_in.y}`;
+      const curve2 = `M ${p2_out.x} ${p2_out.y} C ${p2_out.x - 100} ${p2_out.y + 40}, ${p3_in.x - 40} ${p3_in.y - 80}, ${p3_in.x} ${p3_in.y}`;
       const curve3 = `M ${p3_out.x} ${p3_out.y} C ${p3_out.x + 80} ${p3_out.y}, ${p4_in.x - 80} ${p4_in.y}, ${p4_in.x} ${p4_in.y}`;
 
       setPathD(`${curve1} ${curve2} ${curve3}`);
       setSvgSize({ w: crect.width, h: crect.height });
     };
 
-    // Delay computation to ensure layout is settled
     const timeoutId = setTimeout(computePath, 100);
 
     const onResize = () => {
       setTimeout(computePath, 50);
     };
-    
+
     window.addEventListener('resize', onResize);
 
     const ro = new ResizeObserver(() => {
       setTimeout(computePath, 50);
     });
-    
+
     if (roadmapRef.current) ro.observe(roadmapRef.current);
 
     return () => {
@@ -149,6 +144,7 @@ const Scenario: React.FC = () => {
       ro.disconnect();
     };
   }, []);
+
   const fetchUserData = async () => {
     try {
       const userId = localStorage.getItem('userId');
@@ -442,40 +438,37 @@ const Scenario: React.FC = () => {
           </div>
         </section>
 
-        {/* What We Do Section with Journey Roadmap */}
+        {/* What We Do Section */}
         <section id="demo" className="py-20 px-4 sm:px-6 lg:px-8 mb-60">
           <div className="max-w-7xl mx-auto">
             <h1 className="text-4xl sm:text-5xl font-bold text-center text-white mb-20">
               What do we do?
             </h1>
 
-            {/* Journey Roadmap */}
             <div className="relative max-w-6xl mx-auto pb-64 lg:pb-[26rem]" ref={roadmapRef}>
-              {/* Curved Dotted Road Path */}
-              <svg 
-            className="absolute inset-0 w-full h-full hidden lg:block pointer-events-none" 
-            viewBox={`0 0 ${svgSize.w} ${svgSize.h}`} 
-            preserveAspectRatio="none"
-            style={{ overflow: 'visible' }}
-          >
-            <defs>
-              <linearGradient id="roadGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" style={{ stopColor: 'rgb(103, 232, 249)', stopOpacity: 0.9 }} />
-                <stop offset="50%" style={{ stopColor: 'rgb(45, 152, 218)', stopOpacity: 0.9 }} />
-                <stop offset="100%" style={{ stopColor: 'rgb(103, 232, 249)', stopOpacity: 0.9 }} />
-              </linearGradient>
-            </defs>
-            <path
-              d={pathD}
-              stroke="url(#roadGradient)"
-              strokeWidth="4"
-              fill="none"
-              strokeDasharray="10,15"
-              strokeLinecap="round"
-            />
-          </svg>
+              <svg
+                className="absolute inset-0 w-full h-full hidden lg:block pointer-events-none"
+                viewBox={`0 0 ${svgSize.w} ${svgSize.h}`}
+                preserveAspectRatio="none"
+                style={{ overflow: 'visible' }}
+              >
+                <defs>
+                  <linearGradient id="roadGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" style={{ stopColor: 'rgb(103, 232, 249)', stopOpacity: 0.9 }} />
+                    <stop offset="50%" style={{ stopColor: 'rgb(45, 152, 218)', stopOpacity: 0.9 }} />
+                    <stop offset="100%" style={{ stopColor: 'rgb(103, 232, 249)', stopOpacity: 0.9 }} />
+                  </linearGradient>
+                </defs>
+                <path
+                  d={pathD}
+                  stroke="url(#roadGradient)"
+                  strokeWidth="4"
+                  fill="none"
+                  strokeDasharray="10,15"
+                  strokeLinecap="round"
+                />
+              </svg>
 
-              {/* Journey Nodes */}
               <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-16">
                 {[
                   {
@@ -500,17 +493,17 @@ const Scenario: React.FC = () => {
                   }
                 ].map((node, index) => (
                   <div
-                  key={index}
-                  ref={(el) => {
-                    cardRefs.current[index] = el;
-                  }}
-                  className={`relative backdrop-blur-xl rounded-3xl p-8 transition-all duration-300 hover:scale-105 group overflow-hidden ${staggerClasses[index]}`}
-                  style={{
-                    backgroundColor: 'rgba(40, 45, 65, 0.4)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
-                  }}
-                >
+                    key={index}
+                    ref={(el) => {
+                      cardRefs.current[index] = el;
+                    }}
+                    className={`relative backdrop-blur-xl rounded-3xl p-8 transition-all duration-300 hover:scale-105 group overflow-hidden ${staggerClasses[index]}`}
+                    style={{
+                      backgroundColor: 'rgba(40, 45, 65, 0.4)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+                    }}
+                  >
                     <div className="flex items-start space-x-6">
                       <div className={`flex-shrink-0 w-16 h-16 rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-lg bg-gradient-to-br ${node.gradient}`}>
                         {index + 1}
@@ -521,7 +514,6 @@ const Scenario: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Decorative corner accent */}
                     <div className="absolute top-0 right-0 w-20 h-20 opacity-20 group-hover:opacity-40 transition-opacity">
                       <div className={`w-full h-full rounded-bl-full bg-gradient-to-br ${node.gradient}`}></div>
                     </div>
