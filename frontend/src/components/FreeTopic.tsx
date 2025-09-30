@@ -80,106 +80,107 @@ const FreeTopic = () => {
 
   const mimeTypeRef = useRef<string>('audio/webm'); // add near other refs
 
-const startRecording = async () => {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-    const preferred =
-      MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' :
-      MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' :
-      '';
-
-    mimeTypeRef.current = preferred || 'audio/webm';
-
-    const mediaRecorder = new MediaRecorder(stream, preferred ? { mimeType: preferred } : undefined);
-    mediaRecorderRef.current = mediaRecorder;
-    audioChunksRef.current = [];
-
-    mediaRecorder.ondataavailable = (event) => {
-      if (event.data && event.data.size > 0) {
-        audioChunksRef.current.push(event.data);
-      }
-    };
-
-    mediaRecorder.start();
-    setIsRecording(true);
-    setRecordingStartTime(Date.now());
-    setTimeLeft(120);
-
-    timerIntervalRef.current = window.setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          stopRecording();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  } catch {
-    setError('Failed to access microphone. Please grant permission.');
-  }
-};
-
-const stopRecording = (): Promise<void> => {
-  return new Promise((resolve) => {
-    const rec = mediaRecorderRef.current;
-    if (rec && isRecording) {
-      const onStop = () => {
-        rec.removeEventListener('stop', onStop);
-        setIsRecording(false);
-        if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-        rec.stream.getTracks().forEach(t => t.stop());
-        resolve();
-      };
-      rec.addEventListener('stop', onStop);
-      rec.stop();
-    } else {
-      resolve();
-    }
-  });
-};
-
-const submitRecording = async () => {
-  await stopRecording();
-  setStage('processing');
-
-  const audioBlob = new Blob(audioChunksRef.current, { type: mimeTypeRef.current });
-  if (!audioBlob || audioBlob.size < 8000) { // ~8KB guard matches backend
-    setError('No audio captured. Please try recording again.');
-    setStage('recording');
-    return;
-  }
-
-  const reader = new FileReader();
-  reader.onloadend = async () => {
-    const base64Audio = reader.result as string;
-    const durationSeconds = (Date.now() - recordingStartTime) / 1000;
-
+  const startRecording = async () => {
     try {
-      const userId = localStorage.getItem('userId');
-      const response = await fetch('http://localhost:5000/api/freetopic/process', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, audioFile: base64Audio, durationSeconds }),
-      });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-      const data = await response.json();
+      const preferred =
+        MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' :
+          MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' :
+            '';
 
-      if (!response.ok) {
-        setError(data?.message || 'Failed to process recording.');
-        setStage('recording');
-        return;
-      }
+      mimeTypeRef.current = preferred || 'audio/webm';
 
-      setFeedbackData(data);
-      setStage('feedback');
+      const mediaRecorder = new MediaRecorder(stream, preferred ? { mimeType: preferred } : undefined);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingStartTime(Date.now());
+      setTimeLeft(120);
+
+      timerIntervalRef.current = window.setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            stopRecording();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
     } catch {
-      setError('Failed to process recording. Please try again.');
-      setStage('recording');
+      setError('Failed to access microphone. Please grant permission.');
     }
   };
-  reader.readAsDataURL(audioBlob);
-};
+
+  const stopRecording = (): Promise<void> => {
+    return new Promise((resolve) => {
+      const rec = mediaRecorderRef.current;
+      if (rec && isRecording) {
+        const onStop = () => {
+          rec.removeEventListener('stop', onStop);
+          setIsRecording(false);
+          if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+          rec.stream.getTracks().forEach(t => t.stop());
+          resolve();
+        };
+        rec.addEventListener('stop', onStop);
+        rec.stop();
+      } else {
+        resolve();
+      }
+    });
+  };
+
+  const submitRecording = async () => {
+    await stopRecording();
+    setStage('processing');
+
+    const audioBlob = new Blob(audioChunksRef.current, { type: mimeTypeRef.current });
+    if (!audioBlob || audioBlob.size < 8000) { // ~8KB guard matches backend
+      setError('No audio captured. Please try recording again.');
+      setStage('recording');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64Audio = reader.result as string;
+      const durationSeconds = (Date.now() - recordingStartTime) / 1000;
+
+      try {
+        const userId = localStorage.getItem('userId');
+        const response = await fetch('http://localhost:5000/api/freetopic/process', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, audioFile: base64Audio, durationSeconds }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          setError(data?.message || 'Failed to process recording.');
+          setStage('recording');
+          return;
+        }
+
+        setFeedbackData(data);
+        setStage('feedback');
+      } catch {
+        setError('Failed to process recording. Please try again.');
+        setStage('recording');
+      }
+    };
+    reader.readAsDataURL(audioBlob);
+  };
+
   const PentagonChart = ({ metrics }: { metrics: Metrics }) => {
     const confidenceScore = metrics.confidenceCategory === 'confident' ? 8 : metrics.confidenceCategory === 'monotone' ? 5 : 3;
     const fillerScore = Math.max(0, 10 - metrics.fillerWordCount);
@@ -226,17 +227,29 @@ const submitRecording = async () => {
           ))}
           {maxPoints.map((point, i) => {
             const angle = angleStep * i - Math.PI / 2;
-            const labelR = radius + 25;
-            const labelX = center + labelR * Math.cos(angle);
-            const labelY = center + labelR * Math.sin(angle);
+            const cos = Math.cos(angle);
+            const sin = Math.sin(angle);
+
+            // Place labels just outside the polygon
+            const labelR = radius + 29;
+            const labelX = center + labelR * cos;
+            const labelY = center + labelR * sin;
+
+            // Anchor so text flows inward (prevents clipping)
+            const anchor = cos > 0.35 ? 'end' : cos < -0.35 ? 'start' : 'middle';
+            const dx = cos * 6;
+            const dy = sin * 4;
+
             return (
               <text
                 key={i}
                 x={labelX}
                 y={labelY}
-                textAnchor="middle"
+                dx={dx}
+                dy={dy}
+                textAnchor={anchor}
                 dominantBaseline="middle"
-                className="text-xs fill-gray-700 font-medium"
+                className="text-[15px] font-medium fill-white/95"
               >
                 {points[i].label}
               </text>
