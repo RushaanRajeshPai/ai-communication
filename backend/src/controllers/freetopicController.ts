@@ -7,6 +7,7 @@ import ffmpeg from "fluent-ffmpeg";
 import ffmpegInstaller from "@ffmpeg-installer/ffmpeg";
 import * as fs from "fs";
 import * as path from "path";
+import { extractAudioFeatures, calculateConfidenceCategory } from "../utils/audioAnalysis";
 
 const execFileAsync = promisify(execFile);
 
@@ -215,152 +216,189 @@ export const processRecording = async (req: Request, res: Response) => {
       throw new Error("Transcription is empty");
     }
 
-    // Metrics calculation
-    const words = transcribedText.trim().split(/\s+/);
-    const wordCount = words.length;
-    const durationMinutes = Number(durationSeconds) / 60;
-    const rateOfSpeech = Math.max(1, Math.round(wordCount / Math.max(durationMinutes, 0.1)));
-
-    const fillerWords = ["uh", "um", "like", "you know", "hmm", "ah", "er", "so", "and yeah", "and ya", "basically"];
-    const fillerWordCount = words.filter((word: string) =>
-      fillerWords.includes(word.toLowerCase().replace(/[.,!?]/g, ""))
-    ).length;
-
-    const fillerRatio = fillerWordCount / Math.max(wordCount, 1);
-    // After computing wordCount, rateOfSpeech, fillerRatio
-// After computing wordCount, rateOfSpeech, fillerRatio
-let fluencyScore = 10 - fillerRatio * 60; // stronger filler penalty than before
-
-// Normalize inputs we’ll reuse
-const normalizedWords = words.map(w => w.toLowerCase().replace(/[^a-z']/g, '')).filter(Boolean);
-const uniqueWords = new Set(normalizedWords);
-const uniqueRatio = uniqueWords.size / Math.max(normalizedWords.length, 1);
-
-// Repetition: longest consecutive run of the same token
-let maxRun = 1, run = 1;
-for (let i = 1; i < normalizedWords.length; i++) {
-  if (normalizedWords[i] === normalizedWords[i - 1]) run++;
-  else { if (run > maxRun) maxRun = run; run = 1; }
-}
-if (run > maxRun) maxRun = run;
-
-// Bigram diversity
-let distinctBigrams = 0;
-if (normalizedWords.length > 1) {
-  const bigrams = new Set<string>();
-  for (let i = 1; i < normalizedWords.length; i++) {
-    bigrams.add(`${normalizedWords[i - 1]} ${normalizedWords[i]}`);
-  }
-  distinctBigrams = bigrams.size;
-}
-const bigramRatio = normalizedWords.length > 1 ? distinctBigrams / (normalizedWords.length - 1) : 0;
-
-// Average word length
-const totalChars = normalizedWords.reduce((s, w) => s + w.length, 0);
-const avgWordLen = normalizedWords.length ? totalChars / normalizedWords.length : 0;
-
-// Non-alpha ratio (punishes gibberish/noisy tokens)
-const raw = transcribedText;
-const alphaChars = (raw.match(/[a-z]/gi) || []).length;
-const nonAlphaChars = raw.replace(/\s/g, '').length - alphaChars;
-const nonAlphaRatio = (nonAlphaChars) / Math.max(alphaChars + nonAlphaChars, 1);
-
-// Apply strict caps
-function cap(score: number, maxCap: number) { return Math.min(score, maxCap); }
-
-// Content length caps
-if (wordCount < 30) fluencyScore = cap(fluencyScore, 4);
-else if (wordCount < 60) fluencyScore = cap(fluencyScore, 5);
-else if (wordCount < 100) fluencyScore = cap(fluencyScore, 6);
-
-// Speaking rate caps (tighter band for “natural” rate)
-if (rateOfSpeech < 80 || rateOfSpeech > 180) fluencyScore = cap(fluencyScore, 5);
-if (rateOfSpeech < 70 || rateOfSpeech > 200) fluencyScore = cap(fluencyScore, 4);
-
-// Repetition caps
-if (maxRun >= 6) fluencyScore = cap(fluencyScore, 4);
-else if (maxRun >= 4) fluencyScore = cap(fluencyScore, 5);
-
-// Diversity caps
-if (uniqueRatio < 0.55) fluencyScore = cap(fluencyScore, 4);
-else if (uniqueRatio < 0.70) fluencyScore = cap(fluencyScore, 5);
-
-if (bigramRatio < 0.40) fluencyScore = cap(fluencyScore, 4);
-else if (bigramRatio < 0.60) fluencyScore = cap(fluencyScore, 5);
-
-// Gibberish-ish cues
-if (avgWordLen < 3.6) fluencyScore = cap(fluencyScore, 6);
-if (nonAlphaRatio > 0.15) fluencyScore = cap(fluencyScore, 5);
-
-// Finalize
-fluencyScore = Math.round(fluencyScore);
-fluencyScore = Math.max(1, Math.min(10, fluencyScore));
-
-    console.log("Generating AI feedback...");
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
-
-    const prompt = `
-You are an expert communication coach. Analyze the following speech transcription and provide detailed feedback.
-
-Speaker Profile:
-- Role: ${user.role === "student" ? "Student" : "Working Professional"}
-- Age: ${user.age}
-
-Speech Transcription:
-"${transcribedText}"
-
-Metrics:
-- Word Count: ${wordCount}
-- Rate of Speech: ${rateOfSpeech} words per minute
-- Filler Words: ${fillerWordCount}
-- Duration: ${durationMinutes.toFixed(2)} minutes
-
-Please provide feedback in the following JSON format:
-{
-  "confidenceCategory": "monotone" | "confident" | "hesitant",
-  "whatWentWell": ["point1", "point2", "point3"],
-  "areasForImprovement": ["point1", "point2", "point3"],
-  "sentenceImprovements": [
-    {
-      "original": "unpolished sentence from the speech",
-      "improved": "enhanced version of the sentence"
-    }
-  ]
-}
-
-Evaluate confidence based on:
-- Tone consistency and energy (consider that ${user.role === "work" ? "working professionals typically have more developed speaking skills" : "students are still developing their communication skills"})
-- Use of filler words
-- Sentence structure and flow
-- Word choice and vocabulary
-
-Provide 3 points for what went well, 3 areas for improvement, and 3-4 sentence improvements.
-`;
-
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
-
-    // Extract JSON
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    const feedbackData = jsonMatch ? JSON.parse(jsonMatch[0]) : {
-      confidenceCategory: "hesitant",
-      whatWentWell: ["You completed the speech", "You stayed on topic"],
-      areasForImprovement: ["Reduce filler words", "Speak more confidently"],
-      sentenceImprovements: []
-    };
-
-    // Create recording
-    const recording = {
-      scenario: "Free Topic",
-      transcription: transcribedText,
-      durationMinutes: parseFloat(durationMinutes.toFixed(2)),
-      fillerWordCount,
-      feedback: {
-        confidenceCategory: feedbackData.confidenceCategory,
-        rateOfSpeech,
-        fluencyScore
-      }
-    };
+       // Metrics calculation
+       const words = transcribedText.trim().split(/\s+/);
+       const wordCount = words.length;
+       const durationMinutes = Number(durationSeconds) / 60;
+       const rateOfSpeech = Math.max(1, Math.round(wordCount / Math.max(durationMinutes, 0.1)));
+   
+       const fillerWords = ["uh", "um", "like", "you know", "hmm", "ah", "er", "so", "and yeah", "and ya", "basically"];
+       const fillerWordCount = words.filter((word: string) =>
+         fillerWords.includes(word.toLowerCase().replace(/[.,!?]/g, ""))
+       ).length;
+   
+       const fillerRatio = fillerWordCount / Math.max(wordCount, 1);
+       // After computing wordCount, rateOfSpeech, fillerRatio
+       // After computing wordCount, rateOfSpeech, fillerRatio
+       let fluencyScore = 10 - fillerRatio * 60; // stronger filler penalty than before
+   
+       // Normalize inputs we’ll reuse
+       const normalizedWords = words.map(w => w.toLowerCase().replace(/[^a-z']/g, '')).filter(Boolean);
+       const uniqueWords = new Set(normalizedWords);
+       const uniqueRatio = uniqueWords.size / Math.max(normalizedWords.length, 1);
+   
+       // Repetition: longest consecutive run of the same token
+       let maxRun = 1, run = 1;
+       for (let i = 1; i < normalizedWords.length; i++) {
+         if (normalizedWords[i] === normalizedWords[i - 1]) run++;
+         else { if (run > maxRun) maxRun = run; run = 1; }
+       }
+       if (run > maxRun) maxRun = run;
+   
+       // Bigram diversity
+       let distinctBigrams = 0;
+       if (normalizedWords.length > 1) {
+         const bigrams = new Set<string>();
+         for (let i = 1; i < normalizedWords.length; i++) {
+           bigrams.add(`${normalizedWords[i - 1]} ${normalizedWords[i]}`);
+         }
+         distinctBigrams = bigrams.size;
+       }
+       const bigramRatio = normalizedWords.length > 1 ? distinctBigrams / (normalizedWords.length - 1) : 0;
+   
+       // Average word length
+       const totalChars = normalizedWords.reduce((s, w) => s + w.length, 0);
+       const avgWordLen = normalizedWords.length ? totalChars / normalizedWords.length : 0;
+   
+       // Non-alpha ratio (punishes gibberish/noisy tokens)
+       const raw = transcribedText;
+       const alphaChars = (raw.match(/[a-z]/gi) || []).length;
+       const nonAlphaChars = raw.replace(/\s/g, '').length - alphaChars;
+       const nonAlphaRatio = (nonAlphaChars) / Math.max(alphaChars + nonAlphaChars, 1);
+   
+       // Apply strict caps
+       function cap(score: number, maxCap: number) { return Math.min(score, maxCap); }
+   
+       // Content length caps
+       if (wordCount < 30) fluencyScore = cap(fluencyScore, 4);
+       else if (wordCount < 60) fluencyScore = cap(fluencyScore, 5);
+       else if (wordCount < 100) fluencyScore = cap(fluencyScore, 6);
+   
+       // Speaking rate caps (tighter band for “natural” rate)
+       if (rateOfSpeech < 80 || rateOfSpeech > 180) fluencyScore = cap(fluencyScore, 5);
+       if (rateOfSpeech < 70 || rateOfSpeech > 200) fluencyScore = cap(fluencyScore, 4);
+   
+       // Repetition caps
+       if (maxRun >= 6) fluencyScore = cap(fluencyScore, 4);
+       else if (maxRun >= 4) fluencyScore = cap(fluencyScore, 5);
+   
+       // Diversity caps
+       if (uniqueRatio < 0.55) fluencyScore = cap(fluencyScore, 4);
+       else if (uniqueRatio < 0.70) fluencyScore = cap(fluencyScore, 5);
+   
+       if (bigramRatio < 0.40) fluencyScore = cap(fluencyScore, 4);
+       else if (bigramRatio < 0.60) fluencyScore = cap(fluencyScore, 5);
+   
+       // Gibberish-ish cues
+       if (avgWordLen < 3.6) fluencyScore = cap(fluencyScore, 6);
+       if (nonAlphaRatio > 0.15) fluencyScore = cap(fluencyScore, 5);
+   
+       // Finalize
+       fluencyScore = Math.round(fluencyScore);
+       fluencyScore = Math.max(1, Math.min(10, fluencyScore));
+   
+       // ========== EXTRACT AUDIO FEATURES FROM WAV AND CALCULATE CONFIDENCE ==========
+       console.log("Extracting audio features from WAV file...");
+       const audioFeatures = extractAudioFeatures(wavPath!);
+   
+       console.log("Calculating confidence with audio analysis...");
+       const calculatedConfidence = calculateConfidenceCategory(audioFeatures, {
+         rateOfSpeech,
+         fillerWordCount,
+         fluencyScore,
+         durationMinutes
+       });
+       console.log("Generating AI feedback...");
+       const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+   
+       const prompt = `
+   You are an expert communication coach. Analyze the following free speech with detailed audio and speech metrics.
+   
+   Speaker Profile:
+   - Role: ${user.role === "student" ? "Student" : "Working Professional"}
+   - Age: ${user.age}
+   
+   Free Speech Transcription:
+   "${transcribedText}"
+   
+   Audio Analysis Results:
+   - Volume Level: ${audioFeatures.volume.toFixed(3)} (0-1 scale, optimal: 0.2-0.7)
+   - Pitch Variation: ${audioFeatures.pitchVariance.toFixed(1)} Hz (optimal: >30Hz)
+   - Energy Level: ${audioFeatures.energy.toFixed(3)} (0-1 scale, optimal: >0.3)
+   - Speech Consistency: ${audioFeatures.consistency.toFixed(3)} (0-1 scale, optimal: >0.6)
+   - Average Pitch: ${audioFeatures.averagePitch.toFixed(1)} Hz (typical: 80-300Hz)
+   - Pitch Range: ${audioFeatures.pitchRange.toFixed(1)} Hz (optimal: >50Hz)
+   
+   Speech Metrics:
+   - Word Count: ${wordCount}
+   - Rate of Speech: ${rateOfSpeech} words per minute (optimal: 120-160)
+   - Filler Words: ${fillerWordCount} (optimal: <5)
+   - Fluency Score: ${fluencyScore}/10
+   - Duration: ${durationMinutes.toFixed(2)} minutes
+   
+   CALCULATED CONFIDENCE CATEGORY: ${calculatedConfidence}
+   
+   Please provide feedback in the following STRICT JSON format only (no markdown, no code fences, no commentary outside JSON):
+   {
+     "confidenceCategory": "${calculatedConfidence}",
+     "whatWentWell": ["point1", "point2", "point3"],
+     "areasForImprovement": ["point1", "point2", "point3"],
+     "sentenceImprovements": [
+       {
+         "original": "unpolished sentence from the speech",
+         "improved": "enhanced version of the sentence"
+       }
+     ]
+   }
+   
+   Evaluation Criteria:
+   1. Confidence Assessment: Consider tone, energy, consistency, and speaking patterns. Consider that ${user.role === "work" ? "working professionals typically have more developed speaking skills" : "students are still developing their communication skills"}.
+   2. Communication Skills: clarity, coherence, vocabulary, and overall effectiveness.
+   3. Strengths: 3 specific positives.
+   4. Improvements: 3 concrete, actionable suggestions.
+   5. Sentence Improvements: 3-4 actual rewrites from the transcription.
+   `;
+   
+       const result = await model.generateContent(prompt);
+       const responseText = result.response.text();
+   
+       // Extract JSON robustly
+       function extractJson(text: string) {
+         const stripped = text.replace(/```json|```/g, "").trim();
+         const match = stripped.match(/\{[\s\S]*\}/);
+         return (match ? match[0] : stripped).trim();
+       }
+   
+       let feedbackData: any;
+       try {
+         const jsonStr = extractJson(responseText)
+           .replace(/[“”]/g, '"')
+           .replace(/[‘’]/g, "'");
+         feedbackData = JSON.parse(jsonStr);
+         // Ensure we keep our computed confidence if model changes it
+         feedbackData.confidenceCategory = calculatedConfidence;
+       } catch (e) {
+         console.warn("Failed to parse AI JSON, using calculated confidence. Error:", e);
+         feedbackData = {
+           confidenceCategory: calculatedConfidence,
+           whatWentWell: ["You completed the speech", "You stayed on topic", "You maintained engagement"],
+           areasForImprovement: ["Reduce filler words", "Project more confidence", "Improve structure and clarity"],
+           sentenceImprovements: []
+         };
+       }
+   
+       // Create recording
+       const recording = {
+         scenario: "Free Topic",
+         transcription: transcribedText,
+         durationMinutes: parseFloat(durationMinutes.toFixed(2)),
+         fillerWordCount,
+         feedback: {
+           confidenceCategory: feedbackData.confidenceCategory,
+           rateOfSpeech,
+           fluencyScore
+         }
+       };
 
     // Persist
     user.recordings.push(recording);

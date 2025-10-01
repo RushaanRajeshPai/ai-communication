@@ -11,44 +11,84 @@ interface AudioFeatures {
 
 export function extractAudioFeatures(wavFilePath: string): AudioFeatures {
   try {
-    // Read WAV file as raw buffer
     const wavBuffer = fs.readFileSync(wavFilePath);
     
-    // Parse WAV header manually
+    console.log(`Total WAV file size: ${wavBuffer.length} bytes`);
+    
+    // Verify WAV header
+    const riffHeader = wavBuffer.toString('ascii', 0, 4);
+    const waveHeader = wavBuffer.toString('ascii', 8, 12);
+    
+    if (riffHeader !== 'RIFF' || waveHeader !== 'WAVE') {
+      throw new Error(`Invalid WAV file: RIFF=${riffHeader}, WAVE=${waveHeader}`);
+    }
+    
+    // Find the 'data' chunk (it might not be at offset 36)
+    let dataStart = -1;
+    let dataSize = 0;
+    
+    for (let i = 12; i < wavBuffer.length - 8; i++) {
+      const chunkId = wavBuffer.toString('ascii', i, i + 4);
+      if (chunkId === 'data') {
+        dataSize = wavBuffer.readUInt32LE(i + 4);
+        dataStart = i + 8;
+        console.log(`Found data chunk at offset ${i}, size: ${dataSize} bytes`);
+        break;
+      }
+    }
+    
+    if (dataStart === -1 || dataSize === 0) {
+      throw new Error('Could not find valid data chunk in WAV file');
+    }
+    
+    // Read format chunk
     const sampleRate = wavBuffer.readUInt32LE(24);
     const bitsPerSample = wavBuffer.readUInt16LE(34);
     const numChannels = wavBuffer.readUInt16LE(22);
-    const dataSize = wavBuffer.readUInt32LE(40);
-    const dataStart = 44; // Standard WAV header size
     
-    console.log(`WAV Info: ${sampleRate}Hz, ${bitsPerSample}bit, ${numChannels}ch, ${dataSize} bytes`);
+    console.log(`WAV Info: ${sampleRate}Hz, ${bitsPerSample}bit, ${numChannels}ch`);
+    console.log(`Data: ${dataSize} bytes starting at offset ${dataStart}`);
+    
+    // Verify we have enough data
+    const expectedSamples = dataSize / (bitsPerSample / 8) / numChannels;
+    console.log(`Expected samples: ${expectedSamples}`);
+    
+    if (expectedSamples < 4096) {
+      console.warn(`WARNING: Only ${expectedSamples} samples available. Need at least 4096 for reliable analysis.`);
+      console.warn('Audio recording may be too short or corrupted.');
+    }
     
     // Convert to float samples
     const samples: number[] = [];
     const bytesPerSample = bitsPerSample / 8;
+    const stride = bytesPerSample * numChannels;
     
-    // Fix: Properly handle mono audio by incrementing by bytesPerSample * numChannels
-    for (let i = dataStart; i < dataStart + dataSize; i += bytesPerSample * numChannels) {
+    for (let i = dataStart; i < dataStart + dataSize && i < wavBuffer.length; i += stride) {
+      if (i + bytesPerSample > wavBuffer.length) break;
+      
       let sample: number;
       
       if (bitsPerSample === 16) {
-        sample = wavBuffer.readInt16LE(i) / 32768.0; // Convert to -1 to 1 range
+        sample = wavBuffer.readInt16LE(i) / 32768.0;
       } else if (bitsPerSample === 32) {
         sample = wavBuffer.readFloatLE(i);
+      } else if (bitsPerSample === 8) {
+        sample = (wavBuffer.readUInt8(i) - 128) / 128.0;
       } else {
-        // Skip unsupported bit depths
-        continue;
+        throw new Error(`Unsupported bit depth: ${bitsPerSample}`);
       }
       
-      // For mono audio, we can directly add the sample
-      // For stereo, we would only take the first channel (left)
       samples.push(sample);
     }
     
-    console.log(`Extracted ${samples.length} samples`);
+    console.log(`Successfully extracted ${samples.length} samples`);
     
     if (samples.length === 0) {
       throw new Error('No valid samples found');
+    }
+    
+    if (samples.length < 1000) {
+      throw new Error(`Insufficient samples (${samples.length}). Audio file may be corrupted or too short.`);
     }
     
     const floatSamples = new Float32Array(samples);
@@ -82,15 +122,7 @@ export function extractAudioFeatures(wavFilePath: string): AudioFeatures {
     
   } catch (error) {
     console.error('Error extracting audio features:', error);
-    // Return default values if analysis fails
-    return {
-      volume: 0.5,
-      pitchVariance: 50,
-      energy: 0.5,
-      consistency: 0.5,
-      averagePitch: 150,
-      pitchRange: 100
-    };
+    throw error; // Re-throw instead of returning defaults
   }
 }
 
@@ -131,26 +163,26 @@ function calculateConsistency(samples: Float32Array): number {
   if (volumes.length === 0) return 0.5;
   
   const volumeVariance = calculateVariance(volumes);
-  return Math.max(0, 1 - (volumeVariance * 5)); // Normalize to 0-1
+  return Math.max(0, 1 - (volumeVariance * 5));
 }
 
 function extractPitches(samples: Float32Array, sampleRate: number): number[] {
   const pitches: number[] = [];
-  const windowSize = 4096; // Increased window size for better pitch detection
+  const windowSize = 4096;
   const hopSize = 2048;
+  
+  if (samples.length < windowSize) {
+    console.warn(`Sample length ${samples.length} is less than window size ${windowSize}. Cannot extract pitch.`);
+    return [];
+  }
   
   console.log(`Starting pitch extraction: ${samples.length} samples, ${sampleRate}Hz`);
   
-  // Apply pre-emphasis filter to enhance higher frequencies
   const preEmphasized = applyPreEmphasis(samples);
   
   for (let i = 0; i < preEmphasized.length - windowSize; i += hopSize) {
     const window = preEmphasized.slice(i, i + windowSize);
-    
-    // Apply Hamming window to reduce spectral leakage
     const windowed = applyHammingWindow(window);
-    
-    // Normalize the window
     const normalized = normalizeWindow(windowed);
     
     const pitch = autocorrelationPitch(normalized, sampleRate);
@@ -159,7 +191,11 @@ function extractPitches(samples: Float32Array, sampleRate: number): number[] {
     }
   }
   
-  console.log(`Extracted ${pitches.length} pitch measurements:`, pitches.slice(0, 10)); // Show first 10
+  console.log(`Extracted ${pitches.length} pitch measurements`);
+  if (pitches.length > 0) {
+    console.log(`Pitch range: ${Math.min(...pitches).toFixed(1)} - ${Math.max(...pitches).toFixed(1)} Hz`);
+  }
+  
   return pitches;
 }
 
@@ -186,7 +222,6 @@ function applyHammingWindow(samples: Float32Array): Float32Array {
 }
 
 function normalizeWindow(samples: Float32Array): Float32Array {
-  // Calculate RMS
   let rms = 0;
   for (let i = 0; i < samples.length; i++) {
     rms += samples[i] * samples[i];
@@ -195,7 +230,6 @@ function normalizeWindow(samples: Float32Array): Float32Array {
   
   if (rms === 0) return samples;
   
-  // Normalize to prevent division by zero
   const result = new Float32Array(samples.length);
   for (let i = 0; i < samples.length; i++) {
     result[i] = samples[i] / rms;
@@ -205,22 +239,17 @@ function normalizeWindow(samples: Float32Array): Float32Array {
 }
 
 function autocorrelationPitch(samples: Float32Array, sampleRate: number): number | null {
-  const minPeriod = Math.floor(sampleRate / 400); // 400 Hz max
-  const maxPeriod = Math.floor(sampleRate / 50);  // 50 Hz min
+  const minPeriod = Math.floor(sampleRate / 400);
+  const maxPeriod = Math.floor(sampleRate / 50);
   
-  console.log(`Autocorrelation: sampleRate=${sampleRate}, minPeriod=${minPeriod}, maxPeriod=${maxPeriod}, samples.length=${samples.length}`);
-  
-  // Calculate autocorrelation
   const autocorr = calculateAutocorrelation(samples, maxPeriod);
   
-  // Find the best peak (excluding the zero-lag peak)
   let bestPeriod = 0;
   let bestCorrelation = 0;
   
   for (let period = minPeriod; period <= maxPeriod; period++) {
     const correlation = autocorr[period];
     
-    // Check if this is a local maximum
     if (correlation > bestCorrelation && 
         period > 0 && period < maxPeriod &&
         correlation > autocorr[period - 1] && 
@@ -230,18 +259,12 @@ function autocorrelationPitch(samples: Float32Array, sampleRate: number): number
     }
   }
   
-  console.log(`Best autocorrelation: period=${bestPeriod}, correlation=${bestCorrelation.toFixed(4)}`);
-  
-  // Lower the threshold significantly - autocorrelation values are typically much smaller
-  const threshold = 0.01; // Much lower threshold
+  const threshold = 0.01;
   if (bestCorrelation < threshold) {
-    console.log(`Correlation ${bestCorrelation.toFixed(4)} below threshold ${threshold}`);
     return null;
   }
   
-  const pitch = bestPeriod > 0 ? sampleRate / bestPeriod : null;
-  console.log(`Calculated pitch: ${pitch?.toFixed(1)} Hz`);
-  return pitch;
+  return bestPeriod > 0 ? sampleRate / bestPeriod : null;
 }
 
 function calculateAutocorrelation(samples: Float32Array, maxLag: number): number[] {
@@ -254,7 +277,6 @@ function calculateAutocorrelation(samples: Float32Array, maxLag: number): number
       correlation += samples[i] * samples[i + lag];
     }
     
-    // Normalize by the number of samples used
     autocorr[lag] = correlation / (samples.length - lag);
   }
   
@@ -277,32 +299,32 @@ export function calculateConfidenceCategory(
   
   console.log('Calculating confidence with:', { audioFeatures, speechMetrics });
   
-  // Volume analysis (confident speakers have adequate, steady volume)
+  // Volume analysis
   if (volume > 0.15 && volume < 0.8) {
     confidenceScore += 2;
   } else if (volume < 0.05) {
-    confidenceScore -= 2; // Too quiet = hesitant
+    confidenceScore -= 2;
   } else if (volume > 0.9) {
-    confidenceScore -= 1; // Too loud might indicate nervousness
+    confidenceScore -= 1;
   }
   
-  // Pitch variation (confident speakers have good pitch variation)
+  // Pitch variation
   if (pitchVariance > 30 && pitchRange > 50) {
-    confidenceScore += 2; // Good variation = confident
+    confidenceScore += 2;
   } else if (pitchVariance < 15 || pitchRange < 20) {
-    confidenceScore -= 2; // Monotone = monotone category
+    confidenceScore -= 2;
   }
   
-  // Speech rate (confident speakers maintain steady, appropriate pace)
+  // Speech rate
   if (rateOfSpeech >= 120 && rateOfSpeech <= 160) {
     confidenceScore += 2;
   } else if (rateOfSpeech < 80) {
-    confidenceScore -= 2; // Too slow = hesitant
+    confidenceScore -= 2;
   } else if (rateOfSpeech > 200) {
-    confidenceScore -= 1; // Too fast = nervous
+    confidenceScore -= 1;
   }
   
-  // Filler words (confident speakers use fewer)
+  // Filler words
   if (fillerWordCount <= 3) {
     confidenceScore += 2;
   } else if (fillerWordCount >= 10) {
@@ -318,23 +340,22 @@ export function calculateConfidenceCategory(
     confidenceScore -= 1;
   }
   
-  // Fluency score consideration
+  // Fluency score
   if (fluencyScore >= 7) {
     confidenceScore += 1;
   } else if (fluencyScore <= 4) {
     confidenceScore -= 1;
   }
   
-  // Average pitch consideration (very high or very low pitch might indicate stress)
+  // Average pitch
   if (averagePitch > 50 && averagePitch < 350) {
     if (averagePitch > 200) {
-      confidenceScore -= 0.5; // High pitch might indicate nervousness
+      confidenceScore -= 0.5;
     }
   } else {
-    confidenceScore -= 1; // Unnatural pitch range
+    confidenceScore -= 1;
   }
   
-  // Determine category based on total score
   let category: "monotone" | "confident" | "hesitant";
   if (confidenceScore >= 6) {
     category = "confident";
