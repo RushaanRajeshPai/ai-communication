@@ -27,7 +27,8 @@ export function extractAudioFeatures(wavFilePath: string): AudioFeatures {
     const samples: number[] = [];
     const bytesPerSample = bitsPerSample / 8;
     
-    for (let i = dataStart; i < dataStart + dataSize; i += bytesPerSample) {
+    // Fix: Properly handle mono audio by incrementing by bytesPerSample * numChannels
+    for (let i = dataStart; i < dataStart + dataSize; i += bytesPerSample * numChannels) {
       let sample: number;
       
       if (bitsPerSample === 16) {
@@ -39,10 +40,9 @@ export function extractAudioFeatures(wavFilePath: string): AudioFeatures {
         continue;
       }
       
-      // Only use first channel for mono analysis
-      if (i % (bytesPerSample * numChannels) === 0) {
-        samples.push(sample);
-      }
+      // For mono audio, we can directly add the sample
+      // For stereo, we would only take the first channel (left)
+      samples.push(sample);
     }
     
     console.log(`Extracted ${samples.length} samples`);
@@ -136,41 +136,129 @@ function calculateConsistency(samples: Float32Array): number {
 
 function extractPitches(samples: Float32Array, sampleRate: number): number[] {
   const pitches: number[] = [];
-  const windowSize = 2048;
-  const hopSize = 1024;
+  const windowSize = 4096; // Increased window size for better pitch detection
+  const hopSize = 2048;
   
-  for (let i = 0; i < samples.length - windowSize; i += hopSize) {
-    const window = samples.slice(i, i + windowSize);
-    const pitch = autocorrelationPitch(window, sampleRate);
+  console.log(`Starting pitch extraction: ${samples.length} samples, ${sampleRate}Hz`);
+  
+  // Apply pre-emphasis filter to enhance higher frequencies
+  const preEmphasized = applyPreEmphasis(samples);
+  
+  for (let i = 0; i < preEmphasized.length - windowSize; i += hopSize) {
+    const window = preEmphasized.slice(i, i + windowSize);
+    
+    // Apply Hamming window to reduce spectral leakage
+    const windowed = applyHammingWindow(window);
+    
+    // Normalize the window
+    const normalized = normalizeWindow(windowed);
+    
+    const pitch = autocorrelationPitch(normalized, sampleRate);
     if (pitch && pitch > 50 && pitch < 400) {
       pitches.push(pitch);
     }
   }
   
+  console.log(`Extracted ${pitches.length} pitch measurements:`, pitches.slice(0, 10)); // Show first 10
   return pitches;
+}
+
+function applyPreEmphasis(samples: Float32Array): Float32Array {
+  const result = new Float32Array(samples.length);
+  result[0] = samples[0];
+  
+  for (let i = 1; i < samples.length; i++) {
+    result[i] = samples[i] - 0.97 * samples[i - 1];
+  }
+  
+  return result;
+}
+
+function applyHammingWindow(samples: Float32Array): Float32Array {
+  const result = new Float32Array(samples.length);
+  
+  for (let i = 0; i < samples.length; i++) {
+    const windowValue = 0.54 - 0.46 * Math.cos(2 * Math.PI * i / (samples.length - 1));
+    result[i] = samples[i] * windowValue;
+  }
+  
+  return result;
+}
+
+function normalizeWindow(samples: Float32Array): Float32Array {
+  // Calculate RMS
+  let rms = 0;
+  for (let i = 0; i < samples.length; i++) {
+    rms += samples[i] * samples[i];
+  }
+  rms = Math.sqrt(rms / samples.length);
+  
+  if (rms === 0) return samples;
+  
+  // Normalize to prevent division by zero
+  const result = new Float32Array(samples.length);
+  for (let i = 0; i < samples.length; i++) {
+    result[i] = samples[i] / rms;
+  }
+  
+  return result;
 }
 
 function autocorrelationPitch(samples: Float32Array, sampleRate: number): number | null {
   const minPeriod = Math.floor(sampleRate / 400); // 400 Hz max
   const maxPeriod = Math.floor(sampleRate / 50);  // 50 Hz min
   
+  console.log(`Autocorrelation: sampleRate=${sampleRate}, minPeriod=${minPeriod}, maxPeriod=${maxPeriod}, samples.length=${samples.length}`);
+  
+  // Calculate autocorrelation
+  const autocorr = calculateAutocorrelation(samples, maxPeriod);
+  
+  // Find the best peak (excluding the zero-lag peak)
   let bestPeriod = 0;
   let bestCorrelation = 0;
   
-  for (let period = minPeriod; period <= maxPeriod && period < samples.length / 2; period++) {
-    let correlation = 0;
+  for (let period = minPeriod; period <= maxPeriod; period++) {
+    const correlation = autocorr[period];
     
-    for (let i = 0; i < samples.length - period; i++) {
-      correlation += samples[i] * samples[i + period];
-    }
-    
-    if (correlation > bestCorrelation) {
+    // Check if this is a local maximum
+    if (correlation > bestCorrelation && 
+        period > 0 && period < maxPeriod &&
+        correlation > autocorr[period - 1] && 
+        correlation > autocorr[period + 1]) {
       bestCorrelation = correlation;
       bestPeriod = period;
     }
   }
   
-  return bestPeriod > 0 ? sampleRate / bestPeriod : null;
+  console.log(`Best autocorrelation: period=${bestPeriod}, correlation=${bestCorrelation.toFixed(4)}`);
+  
+  // Lower the threshold significantly - autocorrelation values are typically much smaller
+  const threshold = 0.01; // Much lower threshold
+  if (bestCorrelation < threshold) {
+    console.log(`Correlation ${bestCorrelation.toFixed(4)} below threshold ${threshold}`);
+    return null;
+  }
+  
+  const pitch = bestPeriod > 0 ? sampleRate / bestPeriod : null;
+  console.log(`Calculated pitch: ${pitch?.toFixed(1)} Hz`);
+  return pitch;
+}
+
+function calculateAutocorrelation(samples: Float32Array, maxLag: number): number[] {
+  const autocorr = new Array(maxLag + 1);
+  
+  for (let lag = 0; lag <= maxLag; lag++) {
+    let correlation = 0;
+    
+    for (let i = 0; i < samples.length - lag; i++) {
+      correlation += samples[i] * samples[i + lag];
+    }
+    
+    // Normalize by the number of samples used
+    autocorr[lag] = correlation / (samples.length - lag);
+  }
+  
+  return autocorr;
 }
 
 export function calculateConfidenceCategory(
