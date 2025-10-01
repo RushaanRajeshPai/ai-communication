@@ -269,8 +269,9 @@ const Interview = () => {
     const rateScore = Math.min(10, Math.max(0, (metrics.rateOfSpeech / 150) * 10));
   
     const points = [
+        { label: "Rate of Speech", value: rateScore, tooltip: `Speech Rate: ${metrics.rateOfSpeech} WPM` },
       { label: "Confidence", value: confidenceScore, tooltip: `Confidence: ${metrics.confidenceCategory}` },
-      { label: "Speech Rate", value: rateScore, tooltip: `Speech Rate: ${metrics.rateOfSpeech} WPM` },
+      
       { label: "Fluency", value: metrics.fluencyScore, tooltip: `Fluency Score: ${metrics.fluencyScore}/10` },
       { label: "Filler Words", value: fillerScore, tooltip: `Filler Words: ${metrics.fillerWordCount}` },
       { label: "Duration", value: Math.min(10, metrics.durationMinutes * 5), tooltip: `Duration: ${Math.round(metrics.durationMinutes * 60)} sec` },
