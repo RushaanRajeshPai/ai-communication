@@ -19,7 +19,7 @@ interface UserData {
 
 const scenarios: ScenarioOption[] = [
   { name: 'Free Topic', path: '/free-topic' },
-  { name: 'Group Discussion Simulation', path: '/group-discussion' },
+  { name: 'Group Discussion Simulation', path: '/gd' },
   { name: 'Presentation Practice', path: '/presentation' },
   { name: 'Interview Simulation', path: '/interview' },
   { name: 'Networking Conversation', path: '/networking' },
