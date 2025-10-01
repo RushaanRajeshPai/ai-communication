@@ -3,6 +3,7 @@ import Auth from "./components/Auth";
 import Scenario from "./components/Scenario";
 import FreeTopic from './components/FreeTopic';
 import Interview from './components/Interview';
+import Gd from './components/Gd';
 import Footer from './components/Footer';
 import footer from './assets/footer.png';
 import whitelogo from './assets/whitelogo.png';
@@ -15,6 +16,7 @@ function App() {
         <Route path="/scenario" element={<Scenario />} />
         <Route path="/free-topic" element={<FreeTopic />} />
         <Route path="/interview" element={<Interview />} />
+        <Route path="/gd" element={<Gd />} />
       </Routes>
       <Footer
         whitelogo={whitelogo}
