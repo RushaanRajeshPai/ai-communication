@@ -45,9 +45,7 @@ const AIAvatar: React.FC<AIAvatarProps> = ({ isSpeaking, currentText }) => {
   return (
     <div className="relative w-64 h-64 flex items-center justify-center">
       {/* Main Avatar Container */}
-      <div className={`relative w-48 h-48 rounded-full transition-all duration-300 ${
-        isSpeaking ? 'ring-4 ring-blue-400 ring-opacity-50' : ''
-      }`}>
+      <div className={`relative w-48 h-48 rounded-full transition-all duration-300`}>
         
         {/* Face Background */}
         <div className="absolute inset-0 rounded-full bg-gradient-to-b from-yellow-200 via-yellow-100 to-yellow-200 shadow-lg"></div>
@@ -109,11 +107,7 @@ const AIAvatar: React.FC<AIAvatarProps> = ({ isSpeaking, currentText }) => {
         {/* Cheeks */}
         <div className="absolute top-20 left-4 w-6 h-4 bg-pink-200 rounded-full opacity-60"></div>
         <div className="absolute top-20 right-4 w-6 h-4 bg-pink-200 rounded-full opacity-60"></div>
-        
-        {/* Speaking glow effect */}
-        {isSpeaking && (
-          <div className="absolute inset-0 rounded-full bg-blue-400 opacity-20 animate-pulse"></div>
-        )}
+    
       </div>
       
       {/* Speaking indicator */}
