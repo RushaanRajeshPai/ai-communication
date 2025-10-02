@@ -1,5 +1,5 @@
 import express from "express";
-import { getRandomTopic, processRecording } from "../controllers/freetopicController";
+import { getRandomTopic, processRecording } from "../controllers/storyController";
 
 const router = express.Router();
 

@@ -3,7 +3,7 @@ import express from "express";
 import cors from "cors";
 import connectDB from "./config/db";
 import userRoutes from "./routes/userRoutes";
-import freetopicRoutes from "./routes/freetopicRoutes";
+import freetopicRoutes from "./routes/storyRoutes";
 import interviewRoutes from "./routes/interviewRoutes";
 import gdRoutes from "./routes/gdRoutes";
 
