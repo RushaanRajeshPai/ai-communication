@@ -642,6 +642,87 @@ export default function Gd() {
     );
   }
 
+  // Circular arrangement component
+  const CircularDiscussion = () => {
+    // 5 positions around the circle circumference
+    const positions = [
+      { bottom: '82%', left: '50%', transform: 'translateX(-50%)' }, // User
+      { top: '35%', right: '22%', transform: 'translateY(-50%)' }, // Top Right
+      { bottom: '10%', left: '27%', transform: 'translateX(-50%)' }, // Bottom Left
+      { top: '35%', left: '22%', transform: 'translateY(-50%)' }, // Top Left
+      { top: '80%', right: '22%', transform: 'translateY(-50%)' }, // Bottom Right
+    ];
+
+    const botTypes = ['User', 'Initiator', 'Analyst', 'Mediator', 'Contrarian'] as const;
+
+    return (
+      <div className="relative w-full h-[600px] flex items-center justify-center">
+        {/* Discussion Circle Background */}
+        <div className="absolute inset-0 flex items-center justify-center mt-32">
+          <div className="w-96 h-96 rounded-full border-4 border-indigo-200/30 bg-gradient-to-br from-indigo-50/50 to-purple-50/50 flex items-center justify-center">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-gray-700 mb-2">Group Discussion</div>
+              <div className="text-sm text-gray-500">Topic: {topic}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Bot Avatars in Circle */}
+        {botTypes.map((botType, index) => {
+          const isCurrentlySpeaking = 
+            (botType === 'User' && isUserSpeaking) || 
+            (botType !== 'User' && currentSpeakingBot === botType);
+          
+          const currentText = botType === 'User' ? "User is speaking..." : 
+                            (currentSpeakingBot === botType ? currentBotText : "");
+
+          return (
+            <div
+              key={botType}
+              className="absolute"
+              style={positions[index]}
+            >
+              <div className="relative">
+                {/* Bot Avatar */}
+                <div className="w-32 h-32">
+                  <BotAvatar
+                    isSpeaking={isCurrentlySpeaking}
+                    currentText={currentText}
+                    botType={botType}
+                  />
+                </div>
+                
+                {/* Bot Name Label */}
+                <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2">
+                  <div className={`px-3 py-1 rounded-full text-xs font-medium text-white ${
+                    botType === 'Initiator' ? 'bg-blue-500' :
+                    botType === 'Analyst' ? 'bg-purple-500' :
+                    botType === 'Contrarian' ? 'bg-orange-500' :
+                    botType === 'Mediator' ? 'bg-green-500' :
+                    'bg-indigo-500'
+                  }`}>
+                    {botType}
+                  </div>
+                </div>
+
+                {/* Speaking Indicator */}
+                {isCurrentlySpeaking && (
+                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                    <div className="flex space-x-1">
+                      <div className="w-2 h-2 bg-yellow-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></div>
+                      <div className="w-2 h-2 bg-yellow-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></div>
+                      <div className="w-2 h-2 bg-yellow-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
     <div className="w-screen min-h-screen p-4" style={{ background: "linear-gradient(135deg, rgb(27, 31, 46) 0%, rgb(20, 24, 38) 50%, rgb(15, 18, 30) 100%)" }}>
       <div className="max-w-6xl mx-auto">
@@ -652,88 +733,9 @@ export default function Gd() {
             <p className="text-indigo-100 text-sm md:text-base">{topic}</p>
           </div>
 
-          {/* Bot Avatar Section */}
-          <div className="bg-gray-50 p-6 border-b">
-            <div className="flex justify-center">
-              {currentSpeakingBot ? (
-                <BotAvatar 
-                  isSpeaking={true} 
-                  currentText={currentBotText} 
-                  botType={currentSpeakingBot as 'Initiator' | 'Analyst' | 'Contrarian' | 'Mediator'}
-                />
-              ) : isUserSpeaking ? (
-                <BotAvatar 
-                  isSpeaking={true} 
-                  currentText="User is speaking..." 
-                  botType="User"
-                />
-              ) : (
-                <div className="w-64 h-64 flex items-center justify-center">
-                  <div className="text-gray-400 text-lg">Waiting for discussion to begin...</div>
-                </div>
-              )}
-            </div>
-            {(currentSpeakingBot || isUserSpeaking) && (
-              <div className="text-center mt-4">
-                <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-indigo-100">
-                  <div className={`w-3 h-3 rounded-full ${getBotColor(currentSpeakingBot || 'User')} animate-pulse`} />
-                  <span className="text-sm font-medium text-indigo-800">
-                    {currentSpeakingBot ? `${currentSpeakingBot} is speaking` : 'You are speaking'}
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Participants */}
-          <div className="bg-gray-50 p-4 border-b">
-            <div className="flex flex-wrap gap-3">
-              {bots.map((bot) => (
-                <div
-                  key={bot.name}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-full ${bot.speaking ? 'ring-2 ring-indigo-400 bg-white' : 'bg-white'
-                    } transition-all`}
-                >
-                  <div className={`w-3 h-3 rounded-full ${getBotColor(bot.name)} ${bot.speaking ? 'animate-pulse' : ''
-                    }`} />
-                  <span className="text-sm font-medium">{bot.name}</span>
-                </div>
-              ))}
-              <div className="flex items-center space-x-2 px-4 py-2 rounded-full bg-white">
-                <div className={`w-3 h-3 rounded-full bg-indigo-600 ${isRecording ? 'animate-pulse' : ''
-                  }`} />
-                <span className="text-sm font-medium">You</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Messages */}
-          <div className="h-96 md:h-[500px] overflow-y-auto p-6 space-y-4">
-            {messages.map((msg, idx) => (
-              <div
-                key={idx}
-                className={`flex ${msg.isUser ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`max-w-xs md:max-w-md lg:max-w-lg px-4 py-3 rounded-2xl ${msg.isUser
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-gray-100 text-gray-800'
-                    }`}
-                >
-                  <div className="font-semibold text-sm mb-1">{msg.speaker}</div>
-                  <div className="text-sm md:text-base">{msg.text}</div>
-                </div>
-              </div>
-            ))}
-            {isProcessing && (
-              <div className="flex justify-center">
-                <div className="flex items-center space-x-2 text-gray-500">
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span className="text-sm">Processing...</span>
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
+          {/* Circular Discussion Area */}
+          <div className="bg-gray-50 p-8">
+            <CircularDiscussion />
           </div>
 
           {/* Controls */}
