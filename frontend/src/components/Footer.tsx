@@ -8,6 +8,7 @@ interface FooterProps {
 const Footer: FC<FooterProps> = ({ whitelogo, footer }) => {
   return (
     <div className="mt-0">
+      <section id='footer'>
       <footer className="relative  text-white px-4 sm:px-6 lg:px-12 pt-16 pb-12 overflow-hidden" style={{ background: 'linear-gradient(135deg, rgb(27, 31, 46) 0%, rgb(20, 24, 38) 50%, rgb(15, 18, 30) 100%)' }}>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 max-w-7xl mx-auto relative z-10">
           
@@ -89,6 +90,7 @@ const Footer: FC<FooterProps> = ({ whitelogo, footer }) => {
           />
         </div>
       </footer>
+      </section>
     </div>
   );
 };
