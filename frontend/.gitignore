@@ -24,3 +24,5 @@ backend/models/*.bin *.bin *.pt *.onnx *.weights
 *.njsproj
 *.sln
 *.sw?
+
+.env

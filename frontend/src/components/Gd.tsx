@@ -43,7 +43,7 @@ export default function Gd() {
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [error, setError] = useState<string>('');
-  const [botQueue, setBotQueue] = useState<string[]>([]);
+//   const [botQueue, setBotQueue] = useState<string[]>([]);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -53,9 +53,25 @@ export default function Gd() {
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
+    const storedUserId = localStorage.getItem('userId');
+  
+    if (storedUserId) {
+      setUserId(storedUserId);
+      console.log("User ID loaded from 'userId':", storedUserId);
+      return;
+    }
+  
     if (storedUser) {
-      const userData = JSON.parse(storedUser);
-      setUserId(userData._id || userData.id);
+      try {
+        const userData = JSON.parse(storedUser);
+        const id = userData._id || userData.id;
+        if (id) {
+          setUserId(id);
+          console.log("User ID loaded from 'user':", id);
+        }
+      } catch (e) {
+        console.error("Failed to parse user data:", e);
+      }
     }
   }, []);
 
@@ -90,41 +106,47 @@ export default function Gd() {
 
   const triggerBotResponse = async (botName: string, trigger: string = 'respond') => {
     if (!sessionId) return;
-
+  
     try {
       setBots(prev => prev.map(b => 
         b.name === botName ? { ...b, speaking: true } : b
       ));
-
+  
       const response = await fetch(`${API_URL}/api/gd/bot-response`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId, botName, trigger })
       });
-
+  
       if (!response.ok) throw new Error('Failed to get bot response');
-
+  
       const data = await response.json();
-
+  
+      // Play the audio
+      if (data.audioData) {
+        const audio = new Audio(data.audioData);
+        audio.play();
+        
+        // Wait for audio to finish before allowing next speaker
+        audio.onended = () => {
+          setBots(prev => prev.map(b => ({ ...b, speaking: false })));
+          
+          if (trigger === 'initiate') {
+            setTimeout(() => {
+              const nextBot = getNextBot(botName);
+              if (nextBot) triggerBotResponse(nextBot);
+            }, 1000);
+          }
+        };
+      }
+  
       setMessages(prev => [...prev, {
         speaker: data.botName,
         text: data.text,
         timestamp: data.timestamp,
         isUser: false
       }]);
-
-      setBots(prev => prev.map(b => ({
-        ...b,
-        speaking: false,
-        lastMessage: b.name === botName ? data.text : b.lastMessage
-      })));
-
-      if (trigger === 'initiate') {
-        setTimeout(() => {
-          const nextBot = getNextBot(botName);
-          if (nextBot) triggerBotResponse(nextBot);
-        }, 2000);
-      }
+  
     } catch (err: any) {
       console.error('Bot response error:', err);
       setBots(prev => prev.map(b => ({ ...b, speaking: false })));
@@ -341,7 +363,7 @@ export default function Gd() {
 
   if (discussionEnded && feedback) {
     return (
-      <div className="w-screenmin-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-4 md:p-8">
+      <div className="w-screen min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-4 md:p-8">
         <div className="max-w-5xl mx-auto">
           <div className="bg-white rounded-2xl shadow-xl p-6 md:p-10">
             <div className="text-center mb-8">

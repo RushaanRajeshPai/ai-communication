@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import User from "../models/User";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { execFile } from "child_process";
+import { execFile, exec } from "child_process";
 import { promisify } from "util";
 import ffmpeg from "fluent-ffmpeg";
 import ffmpegInstaller from "@ffmpeg-installer/ffmpeg";
@@ -10,6 +10,7 @@ import * as path from "path";
 import { extractAudioFeatures, calculateConfidenceCategory } from '../utils/audioAnalysis';
 
 const execFileAsync = promisify(execFile);
+const execAsync = promisify(exec);
 
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
@@ -18,7 +19,10 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 const WHISPER_BIN = path.resolve((process.env.WHISPER_CPP_BIN || "main").trim());
 const WHISPER_MODEL = path.resolve((process.env.WHISPER_CPP_MODEL || "models/ggml-base.en.bin").trim());
 
-// Hardcoded GD topics
+// Path to Piper TTS (configure this in your .env)
+const PIPER_BIN = path.resolve((process.env.PIPER_BIN || "piper").trim());
+const PIPER_MODEL = path.resolve((process.env.PIPER_MODEL || "en_US-lessac-medium.onnx").trim());
+
 const GD_TOPICS = [
   "Should artificial intelligence replace human decision-making in critical sectors like healthcare and finance?",
   "Is remote work more productive than traditional office work?",
@@ -32,15 +36,29 @@ const GD_TOPICS = [
   "Is online learning as effective as traditional classroom education?"
 ];
 
-// Bot roles and their characteristics
 const BOT_ROLES = [
-  { name: "Initiator", role: "You initiate discussions with strong opening statements and set the tone" },
-  { name: "Analyst", role: "You provide data-driven insights and logical analysis" },
-  { name: "Contrarian", role: "You challenge prevailing opinions and offer alternative perspectives" },
-  { name: "Mediator", role: "You find common ground and summarize key points" }
+  { 
+    name: "Initiator", 
+    role: "You are assertive and lead discussions. You make strong opening statements and ask thought-provoking questions.",
+    voice: "en_US-lessac-medium" // Different voice configurations
+  },
+  { 
+    name: "Analyst", 
+    role: "You are logical and data-driven. You always cite facts, statistics, and research. You break down complex topics systematically.",
+    voice: "en_US-lessac-medium"
+  },
+  { 
+    name: "Contrarian", 
+    role: "You challenge the status quo. You play devil's advocate and question assumptions. You're provocative but respectful.",
+    voice: "en_US-lessac-medium"
+  },
+  { 
+    name: "Mediator", 
+    role: "You find balance and common ground. You summarize different viewpoints and help synthesize ideas. You're diplomatic.",
+    voice: "en_US-lessac-medium"
+  }
 ];
 
-// In-memory session storage (in production, use Redis or similar)
 interface GDSession {
   sessionId: string;
   topic: string;
@@ -57,7 +75,6 @@ interface GDSession {
 
 const activeSessions = new Map<string, GDSession>();
 
-// Generate random topic and initialize session
 export const getGDTopic = async (req: Request, res: Response) => {
   try {
     const sessionId = `gd_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -74,7 +91,7 @@ export const getGDTopic = async (req: Request, res: Response) => {
 
     activeSessions.set(sessionId, session);
 
-    console.log(`Created new GD session: ${sessionId} with topic: ${randomTopic}`);
+    console.log(`Created GD session: ${sessionId}`);
 
     return res.status(200).json({
       sessionId,
@@ -91,8 +108,9 @@ export const getGDTopic = async (req: Request, res: Response) => {
   }
 };
 
-// Generate bot response using Gemini
 export const generateBotResponse = async (req: Request, res: Response) => {
+  let audioPath: string | null = null;
+  
   try {
     const { sessionId, botName, trigger } = req.body;
 
@@ -110,52 +128,113 @@ export const generateBotResponse = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Bot not found" });
     }
 
-    console.log(`Generating response for ${botName} (trigger: ${trigger})`);
+    console.log(`Generating response for ${botName}`);
 
-    // Build conversation context
-    const conversationContext = session.conversationHistory
-      .map(msg => `${msg.speaker}: ${msg.text}`)
-      .join("\n");
+    // Build detailed conversation context (last 5-8 messages for better context)
+    const recentHistory = session.conversationHistory.slice(-8);
+    const conversationContext = recentHistory.length > 0 
+      ? recentHistory.map(msg => `${msg.speaker}: ${msg.text}`).join("\n") 
+      : "No previous conversation";
 
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
     let prompt = "";
 
     if (trigger === "initiate") {
-      prompt = `
-You are ${botName} in a group discussion. ${bot.role}.
+      prompt = `You are ${botName}, a participant in a group discussion on the topic: "${session.topic}"
 
-Topic: "${session.topic}"
+Your role: ${bot.role}
 
-This is the start of the discussion. Provide a strong, engaging opening statement (2-3 sentences) that introduces your perspective on this topic. Be confident and set the tone for a productive discussion.
+This is the very beginning of the discussion. You are speaking first. Provide a strong, engaging opening statement that:
+1. Clearly states your initial position on this topic (2-3 sentences)
+2. Includes a specific example, statistic, or real-world scenario
+3. Sets up for others to respond
 
-IMPORTANT: Respond with ONLY your statement. No labels, no speaker names, just the content.
-`;
+Be conversational but substantive. Speak as if in a real discussion.
+
+CRITICAL: Output ONLY your spoken words. No labels, no "Bot:", no meta-commentary. Just what you would say out loud.`;
     } else {
-      prompt = `
-You are ${botName} in a group discussion. ${bot.role}.
+      const lastMessage = session.conversationHistory[session.conversationHistory.length - 1];
+      
+      prompt = `You are ${botName}, a participant in a group discussion on the topic: "${session.topic}"
 
-Topic: "${session.topic}"
+Your role: ${bot.role}
 
-Previous conversation:
+Recent conversation:
 ${conversationContext}
 
-Based on the above discussion, provide your response (2-3 sentences). Stay in character, be relevant to what was just said, and advance the discussion meaningfully. ${
-  botName === "Contrarian" 
-    ? "Challenge the previous point respectfully." 
-    : botName === "Analyst" 
-    ? "Provide logical analysis or data-driven insights." 
-    : botName === "Mediator"
-    ? "Find common ground or summarize key points."
-    : "Build on the previous points constructively."
-}
+${lastMessage.speaker} just said: "${lastMessage.text}"
 
-IMPORTANT: Respond with ONLY your statement. No labels, no speaker names, just the content.
-`;
+Now it's your turn to respond. Your response should:
+1. DIRECTLY address what ${lastMessage.speaker} just said
+2. ${botName === "Contrarian" 
+    ? "Challenge their point with a counter-argument or alternative perspective" 
+    : botName === "Analyst" 
+    ? "Analyze their point with logic, data, or a systematic breakdown" 
+    : botName === "Mediator"
+    ? "Acknowledge their point and find common ground or synthesize different views"
+    : "Build on their idea or add a new dimension to the discussion"}
+3. Be 2-4 sentences maximum
+4. Sound natural and conversational
+
+Stay in character. Be relevant. Advance the discussion.
+
+CRITICAL: Output ONLY your spoken words. No labels, no meta-commentary. Just natural speech.`;
     }
 
     const result = await model.generateContent(prompt);
-    const botResponse = result.response.text().trim();
+    let botResponse = result.response.text().trim();
+    
+    // Clean up any accidental labels
+    botResponse = botResponse.replace(/^(Bot:|Initiator:|Analyst:|Contrarian:|Mediator:)\s*/i, '');
+
+    console.log(`${botName} generated: ${botResponse}`);
+
+    // Convert text to speech using Piper TTS
+        // Convert text to speech using Piper TTS
+        const tempDir = path.join(__dirname, "../../temp");
+        if (!fs.existsSync(tempDir)) {
+          fs.mkdirSync(tempDir, { recursive: true });
+        }
+    
+        const timestamp = Date.now();
+        audioPath = path.join(tempDir, `bot_${botName}_${timestamp}.wav`);
+    
+        // Sanitize text for speech (remove symbols/punctuation that get spoken aloud)
+        const spokenText = botResponse
+          .replace(/https?:\/\/\S+/g, '')     // remove URLs
+          .replace(/[\\*\/`"_~’‘“”'"]/g, '')  // remove slashes, backslashes, quotes, markdown chars
+          .replace(/[()[\]{}<>]/g, '')        // remove brackets
+          .replace(/[.,!?;:]/g, '')           // remove punctuation that might be read aloud
+          .replace(/\s{2,}/g, ' ')            // collapse extra spaces
+          .trim();
+    
+        // Generate TTS audio
+        // Piper command: echo "text" | piper --model model.onnx --output_file output.wav
+        await new Promise<void>((resolve, reject) => {
+          const piperProcess = exec(
+            `echo "${spokenText.replace(/"/g, '\\"')}" | ${PIPER_BIN} --model ${PIPER_MODEL} --output_file ${audioPath}`,
+            (error, stdout, stderr) => {
+              if (error) {
+                console.error("Piper TTS error:", error);
+                console.error("stderr:", stderr);
+                reject(error);
+              } else {
+                console.log("TTS generated successfully");
+                resolve();
+              }
+            }
+          );
+        });
+
+    // Verify audio file was created
+    if (!fs.existsSync(audioPath)) {
+      throw new Error("TTS audio file was not created");
+    }
+
+    // Read audio file and convert to base64
+    const audioBuffer = fs.readFileSync(audioPath);
+    const base64Audio = audioBuffer.toString('base64');
 
     const message = {
       speaker: botName,
@@ -166,16 +245,26 @@ IMPORTANT: Respond with ONLY your statement. No labels, no speaker names, just t
 
     session.conversationHistory.push(message);
 
-    console.log(`${botName}: ${botResponse}`);
+    // Cleanup audio file
+    if (audioPath && fs.existsSync(audioPath)) {
+      fs.unlinkSync(audioPath);
+    }
 
     return res.status(200).json({
       botName,
       text: botResponse,
+      audioData: `data:audio/wav;base64,${base64Audio}`, // Send audio to frontend
       timestamp: message.timestamp
     });
 
   } catch (err: any) {
     console.error("Error generating bot response:", err);
+    
+    // Cleanup on error
+    if (audioPath && fs.existsSync(audioPath)) {
+      try { fs.unlinkSync(audioPath); } catch (e) {}
+    }
+    
     return res.status(500).json({ 
       message: "Failed to generate bot response", 
       error: err?.message || String(err) 
@@ -183,7 +272,6 @@ IMPORTANT: Respond with ONLY your statement. No labels, no speaker names, just t
   }
 };
 
-// Transcribe user audio
 export const transcribeUserAudio = async (req: Request, res: Response) => {
   let tempFilePath: string | null = null;
   let wavPath: string | null = null;
@@ -201,17 +289,10 @@ export const transcribeUserAudio = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Session not found" });
     }
 
-    console.log(`Transcribing user audio for session: ${sessionId}`);
-
-    // Validate whisper paths
-    if (!fs.existsSync(WHISPER_BIN)) {
-      return res.status(500).json({ message: `Whisper binary not found at: ${WHISPER_BIN}` });
-    }
-    if (!fs.existsSync(WHISPER_MODEL)) {
-      return res.status(500).json({ message: `Whisper model not found at: ${WHISPER_MODEL}` });
+    if (!fs.existsSync(WHISPER_BIN) || !fs.existsSync(WHISPER_MODEL)) {
+      return res.status(500).json({ message: "Whisper not configured properly" });
     }
 
-    // Parse base64 audio
     let base64Payload = audioFile;
     let ext = "webm";
     if (audioFile.includes(",")) {
@@ -220,19 +301,15 @@ export const transcribeUserAudio = async (req: Request, res: Response) => {
       if (meta.includes("audio/ogg")) ext = "ogg";
       else if (meta.includes("audio/webm")) ext = "webm";
       else if (meta.includes("audio/mp4") || meta.includes("audio/m4a")) ext = "m4a";
-      else if (meta.includes("audio/mpeg") || meta.includes("audio/mp3")) ext = "mp3";
       else ext = "webm";
     }
 
     const audioBuffer = Buffer.from(base64Payload, "base64");
 
-    if (!audioBuffer || audioBuffer.length < 4096) {
-      return res.status(400).json({ 
-        message: "Audio seems empty or too short" 
-      });
+    if (audioBuffer.length < 4096) {
+      return res.status(400).json({ message: "Audio too short" });
     }
 
-    // Create temp directory
     const tempDir = path.join(__dirname, "../../temp");
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
@@ -241,11 +318,8 @@ export const transcribeUserAudio = async (req: Request, res: Response) => {
     const stamp = Date.now();
     tempFilePath = path.join(tempDir, `gd_user_${stamp}.${ext}`);
     fs.writeFileSync(tempFilePath, audioBuffer);
-
-    // Store the temp file path for later use in final analysis
     session.userAudioFiles.push(tempFilePath);
 
-    // Convert to WAV
     wavPath = path.join(tempDir, `gd_user_${stamp}.wav`);
     
     await new Promise<void>((resolve, reject) => {
@@ -255,20 +329,12 @@ export const transcribeUserAudio = async (req: Request, res: Response) => {
         .audioFrequency(16000)
         .format("wav")
         .on("end", () => resolve())
-        .on("error", (err: any) => reject(err))
+        .on("error", reject)
         .save(wavPath!);
     });
 
     const outPrefix = path.join(tempDir, `gd_transcript_${stamp}`);
-
-    // Run Whisper
-    const whisperArgs = [
-      "-m", WHISPER_MODEL,
-      "-f", wavPath,
-      "-otxt",
-      "-of", outPrefix,
-      "-nt"
-    ];
+    const whisperArgs = ["-m", WHISPER_MODEL, "-f", wavPath, "-otxt", "-of", outPrefix, "-nt"];
 
     await execFileAsync(WHISPER_BIN, whisperArgs, { 
       windowsHide: true,
@@ -279,7 +345,7 @@ export const transcribeUserAudio = async (req: Request, res: Response) => {
     transcriptTxtPath = `${outPrefix}.txt`;
     
     if (!fs.existsSync(transcriptTxtPath)) {
-      throw new Error("Transcription file was not created");
+      throw new Error("Transcription failed");
     }
     
     const transcribedText = fs.readFileSync(transcriptTxtPath, "utf-8").trim();
@@ -299,7 +365,6 @@ export const transcribeUserAudio = async (req: Request, res: Response) => {
 
     console.log(`User: ${transcribedText}`);
 
-    // Cleanup immediately after transcription
     if (wavPath && fs.existsSync(wavPath)) fs.unlinkSync(wavPath);
     if (transcriptTxtPath && fs.existsSync(transcriptTxtPath)) fs.unlinkSync(transcriptTxtPath);
 
@@ -309,48 +374,49 @@ export const transcribeUserAudio = async (req: Request, res: Response) => {
     });
 
   } catch (err: any) {
-    console.error("Error transcribing user audio:", err);
+    console.error("Error transcribing:", err);
     return res.status(500).json({ 
       message: "Failed to transcribe audio", 
       error: err?.message || String(err) 
     });
   } finally {
-    // Cleanup
     try {
       if (wavPath && fs.existsSync(wavPath)) fs.unlinkSync(wavPath);
       if (transcriptTxtPath && fs.existsSync(transcriptTxtPath)) fs.unlinkSync(transcriptTxtPath);
-    } catch (e) {
-      console.error("Cleanup error:", e);
-    }
+    } catch (e) {}
   }
 };
 
-// End discussion and generate feedback
 export const endDiscussion = async (req: Request, res: Response) => {
   try {
     const { sessionId, userId } = req.body;
 
-    if (!sessionId || !userId) {
-      return res.status(400).json({ message: "Missing sessionId or userId" });
+    console.log("End discussion request:", { sessionId, userId });
+
+    if (!sessionId) {
+      return res.status(400).json({ message: "Missing sessionId" });
+    }
+
+    if (!userId) {
+      return res.status(400).json({ message: "Missing userId - user not logged in" });
     }
 
     const session = activeSessions.get(sessionId);
     if (!session) {
-      return res.status(404).json({ message: "Session not found" });
+      return res.status(404).json({ message: "Session not found or expired" });
     }
 
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      console.error("User not found in database:", userId);
+      return res.status(404).json({ message: "User not found in database" });
     }
 
-    console.log(`Ending GD session: ${sessionId}`);
+    console.log(`Ending GD for user: ${user.fullname}`);
 
-    // Calculate duration
     const durationSeconds = (Date.now() - session.startTime) / 1000;
     const durationMinutes = durationSeconds / 60;
 
-    // Get user's contributions only
     const userMessages = session.conversationHistory.filter(msg => msg.isUser);
     const fullTranscription = session.conversationHistory
       .map(msg => `${msg.speaker}: ${msg.text}`)
@@ -360,14 +426,13 @@ export const endDiscussion = async (req: Request, res: Response) => {
 
     if (!userTranscription || userTranscription.trim().length === 0) {
       return res.status(400).json({ 
-        message: "No user participation detected in the discussion" 
+        message: "No user participation detected" 
       });
     }
 
-    // Calculate metrics based on user's speech only
     const words = userTranscription.trim().split(/\s+/);
     const wordCount = words.length;
-    const userDurationMinutes = durationMinutes * (userMessages.length / session.conversationHistory.length);
+    const userDurationMinutes = durationMinutes * (userMessages.length / Math.max(session.conversationHistory.length, 1));
     const rateOfSpeech = Math.max(1, Math.round(wordCount / Math.max(userDurationMinutes, 0.1)));
 
     const fillerWords = ["uh", "um", "like", "you know", "hmm", "ah", "er", "so", "basically"];
@@ -382,7 +447,6 @@ export const endDiscussion = async (req: Request, res: Response) => {
     const uniqueWords = new Set(normalizedWords);
     const uniqueRatio = uniqueWords.size / Math.max(normalizedWords.length, 1);
 
-    // Repetition analysis
     let maxRun = 1, run = 1;
     for (let i = 1; i < normalizedWords.length; i++) {
       if (normalizedWords[i] === normalizedWords[i - 1]) run++;
@@ -390,7 +454,6 @@ export const endDiscussion = async (req: Request, res: Response) => {
     }
     if (run > maxRun) maxRun = run;
 
-    // Apply caps
     function cap(score: number, maxCap: number) { return Math.min(score, maxCap); }
 
     if (wordCount < 30) fluencyScore = cap(fluencyScore, 4);
@@ -403,7 +466,6 @@ export const endDiscussion = async (req: Request, res: Response) => {
 
     fluencyScore = Math.round(Math.max(1, Math.min(10, fluencyScore)));
 
-    // Extract audio features from all user audio files
     let audioFeatures = {
       volume: 0.3,
       pitchVariance: 40,
@@ -413,11 +475,8 @@ export const endDiscussion = async (req: Request, res: Response) => {
       pitchRange: 60
     };
 
-    // Try to analyze the most recent user audio file
     if (session.userAudioFiles.length > 0) {
       const lastAudioFile = session.userAudioFiles[session.userAudioFiles.length - 1];
-      
-      // Convert to WAV for analysis
       const tempDir = path.join(__dirname, "../../temp");
       const analysisWavPath = path.join(tempDir, `gd_analysis_${Date.now()}.wav`);
       
@@ -429,15 +488,14 @@ export const endDiscussion = async (req: Request, res: Response) => {
             .audioFrequency(16000)
             .format("wav")
             .on("end", () => resolve())
-            .on("error", (err: any) => reject(err))
+            .on("error", reject)
             .save(analysisWavPath);
         });
 
         audioFeatures = extractAudioFeatures(analysisWavPath);
-        
         if (fs.existsSync(analysisWavPath)) fs.unlinkSync(analysisWavPath);
       } catch (e) {
-        console.warn("Could not extract audio features, using defaults:", e);
+        console.warn("Audio analysis failed, using defaults");
       }
     }
 
@@ -448,59 +506,38 @@ export const endDiscussion = async (req: Request, res: Response) => {
       durationMinutes: userDurationMinutes
     });
 
-    // Generate feedback using Gemini
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
-    const prompt = `
-You are an expert group discussion evaluator. Analyze this candidate's performance in a group discussion.
+    const prompt = `You are an expert group discussion evaluator.
 
-Candidate Profile:
-- Role: ${user.role === "student" ? "Student" : "Working Professional"}
-- Age: ${user.age}
+Candidate: ${user.role === "student" ? "Student" : "Professional"}, Age ${user.age}
 
-Discussion Topic: "${session.topic}"
+Topic: "${session.topic}"
 
-Full Discussion Transcript (includes AI bots and user):
+Full Discussion:
 ${fullTranscription}
 
-User's Contributions Only:
+User's Contributions (${userMessages.length} turns):
 ${userTranscription}
 
-Performance Metrics:
-- Total Words Spoken: ${wordCount}
-- Rate of Speech: ${rateOfSpeech} WPM
-- Filler Words: ${fillerWordCount}
-- Fluency Score: ${fluencyScore}/10
-- Participation: ${userMessages.length} turns out of ${session.conversationHistory.length} total
+Metrics: ${wordCount} words, ${rateOfSpeech} WPM, ${fillerWordCount} fillers, Fluency ${fluencyScore}/10
+Confidence: ${calculatedConfidence}
 
-Audio Analysis:
-- Volume: ${audioFeatures.volume.toFixed(3)}
-- Pitch Variation: ${audioFeatures.pitchVariance.toFixed(1)} Hz
-- Energy: ${audioFeatures.energy.toFixed(3)}
-- Calculated Confidence: ${calculatedConfidence}
-
-Provide feedback in this EXACT JSON format:
+Provide feedback in this JSON format:
 {
   "confidenceCategory": "${calculatedConfidence}",
-  "whatWentWell": ["point1", "point2", "point3"],
-  "areasForImprovement": ["point1", "point2", "point3"],
-  "keyStrengths": ["strength1", "strength2"],
+  "whatWentWell": ["specific point 1", "specific point 2", "specific point 3"],
+  "areasForImprovement": ["actionable point 1", "actionable point 2", "actionable point 3"],
+  "keyStrengths": ["strength 1", "strength 2"],
   "participationQuality": "brief assessment"
 }
 
-Evaluation Criteria:
-1. Content Quality: Relevance, logical arguments, examples
-2. Communication: Clarity, confidence, articulation
-3. Engagement: Active listening, building on others' points
-4. Group Dynamics: Respectful disagreement, turn-taking
-
-Output ONLY valid JSON. No markdown, no code fences.
-`;
+Evaluate: content quality, communication clarity, engagement level, group dynamics.
+Output ONLY valid JSON.`;
 
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();
 
-    // Parse feedback
     function extractJson(text: string) {
       const stripped = text.replace(/```json|```/g, "").trim();
       const match = stripped.match(/\{[\s\S]*\}/);
@@ -509,30 +546,18 @@ Output ONLY valid JSON. No markdown, no code fences.
 
     let feedbackData: any;
     try {
-      const jsonStr = extractJson(responseText)
-        .replace(/[""]/g, '"')
-        .replace(/['']/g, "'");
+      const jsonStr = extractJson(responseText).replace(/[""]/g, '"').replace(/['']/g, "'");
       feedbackData = JSON.parse(jsonStr);
     } catch (e) {
-      console.warn("Failed to parse feedback JSON:", e);
       feedbackData = {
         confidenceCategory: calculatedConfidence,
-        whatWentWell: [
-          "You participated in the group discussion",
-          "You contributed your thoughts on the topic",
-          "You engaged with the conversation"
-        ],
-        areasForImprovement: [
-          "Structure your points more clearly",
-          "Provide more specific examples",
-          "Reduce filler words for better fluency"
-        ],
+        whatWentWell: ["You participated actively", "You shared your perspective", "You engaged with the topic"],
+        areasForImprovement: ["Structure arguments more clearly", "Provide specific examples", "Reduce filler words"],
         keyStrengths: ["Active participation"],
-        participationQuality: "Good engagement with room for improvement"
+        participationQuality: "Good engagement"
       };
     }
 
-    // Save to database
     const recording = {
       scenario: `Group Discussion: ${session.topic}`,
       transcription: userTranscription,
@@ -546,8 +571,6 @@ Output ONLY valid JSON. No markdown, no code fences.
     };
 
     user.recordings.push(recording);
-
-    // Update overall stats
     user.overall.totalDuration = user.recordings.reduce((sum, rec) => sum + rec.durationMinutes, 0);
     user.overall.avgRateOfSpeech = Math.round(
       user.recordings.reduce((sum, rec) => sum + rec.feedback.rateOfSpeech, 0) / user.recordings.length
@@ -558,26 +581,17 @@ Output ONLY valid JSON. No markdown, no code fences.
     user.overall.totalFillerWords = user.recordings.reduce((sum, rec) => sum + rec.fillerWordCount, 0);
 
     const confidenceCounts = { monotone: 0, confident: 0, hesitant: 0 } as Record<string, number>;
-    user.recordings.forEach(rec => {
-      confidenceCounts[rec.feedback.confidenceCategory]++;
-    });
+    user.recordings.forEach(rec => confidenceCounts[rec.feedback.confidenceCategory]++);
     const maxCategory = Object.entries(confidenceCounts).reduce((a, b) => a[1] > b[1] ? a : b)[0];
     user.overall.avgConfidence = maxCategory;
 
     await user.save();
 
-    // Cleanup session and temp files
     session.userAudioFiles.forEach(filePath => {
-      try {
-        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-      } catch (e) {
-        console.error("Error deleting temp file:", e);
-      }
+      try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch (e) {}
     });
 
     activeSessions.delete(sessionId);
-
-    console.log("GD session complete, feedback generated");
 
     return res.status(200).json({
       message: "Discussion ended successfully",
