@@ -313,7 +313,7 @@ export const processRecording = async (req: Request, res: Response) => {
        const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
    
        const prompt = `
-   You are an expert communication coach. Analyze the following free speech with detailed audio and speech metrics.
+   You are an expert communication coach. Analyze the following narrated story with detailed audio and speech metrics.
    
    Speaker Profile:
    - Role: ${user.role === "student" ? "Student" : "Working Professional"}
@@ -355,9 +355,10 @@ export const processRecording = async (req: Request, res: Response) => {
    Evaluation Criteria:
    1. Confidence Assessment: Consider tone, energy, consistency, and speaking patterns. Consider that ${user.role === "work" ? "working professionals typically have more developed speaking skills" : "students are still developing their communication skills"}.
    2. Communication Skills: clarity, coherence, vocabulary, and overall effectiveness.
-   3. Strengths: 3 specific positives.
-   4. Improvements: 3 concrete, actionable suggestions.
-   5. Sentence Improvements: 3-4 actual rewrites from the transcription.
+   3. Narration aligning with the provided topic.
+   4. Strengths: 3 specific positives.
+   5. Improvements: 3 concrete, actionable suggestions.
+   6. Sentence Improvements: 3-4 actual rewrites from the transcription.
    `;
    
        const result = await model.generateContent(prompt);
