@@ -663,16 +663,17 @@ const Interview = () => {
           <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 mb-6 border border-white/20">
             <div className="flex flex-col items-center mb-6">
               {/* Human AI Avatar with Lip Sync */}
-              <div className="relative mb-8">
+              <div className="relative">
                 <AIAvatar 
                   isSpeaking={isAISpeaking} 
                   currentText={INTERVIEW_QUESTIONS[currentQuestion]} 
                 />
               </div>
 
-              <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-2">
+              <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mt-4 mb-2">
                 AI Interviewer
               </h2>
+              
               <div className="bg-blue-600/20 border-2 border-blue-400 rounded-xl p-6 w-full">
                 <p className="text-xl text-center font-medium">
                   {INTERVIEW_QUESTIONS[currentQuestion]}
@@ -690,7 +691,7 @@ const Interview = () => {
                 </div>
               ) : isAISpeaking ? (
                 <div className="flex items-center space-x-3 bg-indigo-600/20 px-6 py-3 rounded-full border-2 border-indigo-500">
-                  <Loader2 className="w-5 h-5 text-indigo-400 animate-spin" />
+                  {/* <Loader2 className="w-5 h-5 text-indigo-400 animate-spin" /> */}
                   <span className="text-indigo-400 font-semibold">AI is speaking...</span>
                 </div>
               ) : (
@@ -709,7 +710,7 @@ const Interview = () => {
                     <div
                       key={i}
                       className="w-3 h-12 bg-red-500 rounded-full animate-pulse"
-                      style={{ animationDelay: `${i * 0.2}s` }}
+                      style={{ animationDelay: `${i * 0.8}s` }}
                     />
                   ))}
                 </div>
