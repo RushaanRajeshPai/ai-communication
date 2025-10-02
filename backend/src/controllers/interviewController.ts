@@ -50,7 +50,7 @@ export const processInterview = async (req: Request, res: Response) => {
     // Validate whisper paths early
     console.log("Whisper binary path:", WHISPER_BIN);
     console.log("Whisper model path:", WHISPER_MODEL);
-    
+
     if (!fs.existsSync(WHISPER_BIN)) {
       console.error("Whisper binary not found!");
       return res.status(500).json({ message: `Whisper binary not found at: ${WHISPER_BIN}` });
@@ -81,8 +81,8 @@ export const processInterview = async (req: Request, res: Response) => {
     console.log("Audio buffer size:", audioBuffer.length);
 
     if (!audioBuffer || audioBuffer.length < 8192) {
-      return res.status(400).json({ 
-        message: "Audio seems empty or too short. Please ensure you answered all questions properly." 
+      return res.status(400).json({
+        message: "Audio seems empty or too short. Please ensure you answered all questions properly."
       });
     }
 
@@ -100,7 +100,7 @@ export const processInterview = async (req: Request, res: Response) => {
     // Convert to WAV for Whisper
     wavPath = path.join(tempDir, `interview_${stamp}.wav`);
     console.log("Converting to WAV:", wavPath);
-    
+
     await new Promise<void>((resolve, reject) => {
       ffmpeg(tempFilePath!)
         .noVideo()
@@ -124,13 +124,13 @@ export const processInterview = async (req: Request, res: Response) => {
     const outPrefix = path.join(tempDir, `interview_transcript_${stamp}`);
 
     // Verify WAV file
-        // Verify WAV file
-        const wavStats = fs.statSync(wavPath!);
-        console.log("WAV file size:", wavStats.size);
-        
-        if (!wavStats || wavStats.size < 8000) {
-          throw new Error(`WAV seems empty or too small: ${wavPath} (${wavStats?.size || 0} bytes)`);
-        }
+    // Verify WAV file
+    const wavStats = fs.statSync(wavPath!);
+    console.log("WAV file size:", wavStats.size);
+
+    if (!wavStats || wavStats.size < 8000) {
+      throw new Error(`WAV seems empty or too small: ${wavPath} (${wavStats?.size || 0} bytes)`);
+    }
 
     // Run Whisper transcription
     const whisperArgs = [
@@ -149,16 +149,16 @@ export const processInterview = async (req: Request, res: Response) => {
       const { stdout, stderr } = await execFileAsync(
         WHISPER_BIN,
         whisperArgs,
-        { 
+        {
           windowsHide: true,
           timeout: 180000, // 3 minute timeout
           maxBuffer: 10 * 1024 * 1024 // 10MB buffer
         }
       );
-      
+
       if (stdout) console.log("Whisper stdout:", stdout);
       if (stderr) console.log("Whisper stderr:", stderr);
-      
+
     } catch (e: any) {
       console.error("=== Whisper Execution Failed ===");
       console.error("Error code:", e?.code);
@@ -166,124 +166,124 @@ export const processInterview = async (req: Request, res: Response) => {
       console.error("Stdout:", e?.stdout);
       console.error("Stderr:", e?.stderr);
       console.error("Message:", e?.message);
-      
+
       const details = [
         e?.stderr,
         e?.stdout,
         e?.message
       ].filter(Boolean).join("\n");
-      
+
       throw new Error(`Whisper.cpp transcription failed: ${details || "unknown error"}`);
     }
 
     transcriptTxtPath = `${outPrefix}.txt`;
     console.log("Looking for transcript at:", transcriptTxtPath);
-    
+
     if (!fs.existsSync(transcriptTxtPath!)) {
       const tempFiles = fs.readdirSync(tempDir);
       console.error("Transcript not found. Files in temp dir:", tempFiles);
       throw new Error("Transcription file was not created");
     }
-    
+
     const transcribedText = fs.readFileSync(transcriptTxtPath!, "utf-8").trim();
     console.log("Transcription:", transcribedText);
-    
+
     if (!transcribedText) {
       throw new Error("Transcription is empty");
     }
 
-        // ========== METRICS CALCULATION ==========
-        const words = transcribedText.trim().split(/\s+/);
-        const wordCount = words.length;
-        const durationMinutes = Number(durationSeconds) / 60;
-        const rateOfSpeech = Math.max(1, Math.round(wordCount / Math.max(durationMinutes, 0.1)));
-    
-        const fillerWords = ["uh", "um", "like", "you know", "hmm", "ah", "er", "so", "and yeah", "and ya", "basically"];
-        const fillerWordCount = words.filter((word: string) =>
-          fillerWords.includes(word.toLowerCase().replace(/[.,!?]/g, ""))
-        ).length;
-    
-        const fillerRatio = fillerWordCount / Math.max(wordCount, 1);
-    
-        // Calculate fluency score with same algorithm as freetopic
-        let fluencyScore = 10 - fillerRatio * 60;
-    
-        const normalizedWords = words.map(w => w.toLowerCase().replace(/[^a-z']/g, '')).filter(Boolean);
-        const uniqueWords = new Set(normalizedWords);
-        const uniqueRatio = uniqueWords.size / Math.max(normalizedWords.length, 1);
-    
-        // Repetition: longest consecutive run of the same token
-        let maxRun = 1, run = 1;
-        for (let i = 1; i < normalizedWords.length; i++) {
-          if (normalizedWords[i] === normalizedWords[i - 1]) run++;
-          else { if (run > maxRun) maxRun = run; run = 1; }
-        }
-        if (run > maxRun) maxRun = run;
-    
-        // Bigram diversity
-        let distinctBigrams = 0;
-        if (normalizedWords.length > 1) {
-          const bigrams = new Set<string>();
-          for (let i = 1; i < normalizedWords.length; i++) {
-            bigrams.add(`${normalizedWords[i - 1]} ${normalizedWords[i]}`);
-          }
-          distinctBigrams = bigrams.size;
-        }
-        const bigramRatio = normalizedWords.length > 1 ? distinctBigrams / (normalizedWords.length - 1) : 0;
-    
-        // Average word length
-        const totalChars = normalizedWords.reduce((s, w) => s + w.length, 0);
-        const avgWordLen = normalizedWords.length ? totalChars / normalizedWords.length : 0;
-    
-        // Non-alpha ratio
-        const raw = transcribedText;
-        const alphaChars = (raw.match(/[a-z]/gi) || []).length;
-        const nonAlphaChars = raw.replace(/\s/g, '').length - alphaChars;
-        const nonAlphaRatio = (nonAlphaChars) / Math.max(alphaChars + nonAlphaChars, 1);
-    
-        // Apply strict caps
-        function cap(score: number, maxCap: number) { return Math.min(score, maxCap); }
-    
-        // Content length caps
-        if (wordCount < 30) fluencyScore = cap(fluencyScore, 4);
-        else if (wordCount < 60) fluencyScore = cap(fluencyScore, 5);
-        else if (wordCount < 100) fluencyScore = cap(fluencyScore, 6);
-    
-        // Speaking rate caps
-        if (rateOfSpeech < 80 || rateOfSpeech > 180) fluencyScore = cap(fluencyScore, 5);
-        if (rateOfSpeech < 70 || rateOfSpeech > 200) fluencyScore = cap(fluencyScore, 4);
-    
-        // Repetition caps
-        if (maxRun >= 6) fluencyScore = cap(fluencyScore, 4);
-        else if (maxRun >= 4) fluencyScore = cap(fluencyScore, 5);
-    
-        // Diversity caps
-        if (uniqueRatio < 0.55) fluencyScore = cap(fluencyScore, 4);
-        else if (uniqueRatio < 0.70) fluencyScore = cap(fluencyScore, 5);
-    
-        if (bigramRatio < 0.40) fluencyScore = cap(fluencyScore, 4);
-        else if (bigramRatio < 0.60) fluencyScore = cap(fluencyScore, 5);
-    
-        // Gibberish-ish cues
-        if (avgWordLen < 3.6) fluencyScore = cap(fluencyScore, 6);
-        if (nonAlphaRatio > 0.15) fluencyScore = cap(fluencyScore, 5);
-    
-        // Finalize
-        fluencyScore = Math.round(fluencyScore);
-        fluencyScore = Math.max(1, Math.min(10, fluencyScore));
-    
-        // ========== EXTRACT AUDIO FEATURES ==========
-        console.log("Extracting audio features from WAV file...");
-        const audioFeatures = extractAudioFeatures(wavPath!);
-    
-        // ========== CALCULATE CONFIDENCE USING AUDIO FEATURES ==========
-        console.log("Calculating confidence with audio analysis...");
-        const calculatedConfidence = calculateConfidenceCategory(audioFeatures, {
-          rateOfSpeech,
-          fillerWordCount,
-          fluencyScore,
-          durationMinutes
-        });
+    //METRICS CALCULATION 
+    const words = transcribedText.trim().split(/\s+/);
+    const wordCount = words.length;
+    const durationMinutes = Number(durationSeconds) / 60;
+    const rateOfSpeech = Math.max(1, Math.round(wordCount / Math.max(durationMinutes, 0.1)));
+
+    const fillerWords = ["uh", "um", "like", "you know", "hmm", "ah", "er", "so", "and yeah", "and ya", "basically"];
+    const fillerWordCount = words.filter((word: string) =>
+      fillerWords.includes(word.toLowerCase().replace(/[.,!?]/g, ""))
+    ).length;
+
+    const fillerRatio = fillerWordCount / Math.max(wordCount, 1);
+
+    // Calculate fluency score with same algorithm as freetopic
+    let fluencyScore = 10 - fillerRatio * 60;
+
+    const normalizedWords = words.map(w => w.toLowerCase().replace(/[^a-z']/g, '')).filter(Boolean);
+    const uniqueWords = new Set(normalizedWords);
+    const uniqueRatio = uniqueWords.size / Math.max(normalizedWords.length, 1);
+
+    // Repetition: longest consecutive run of the same token
+    let maxRun = 1, run = 1;
+    for (let i = 1; i < normalizedWords.length; i++) {
+      if (normalizedWords[i] === normalizedWords[i - 1]) run++;
+      else { if (run > maxRun) maxRun = run; run = 1; }
+    }
+    if (run > maxRun) maxRun = run;
+
+    // Bigram diversity
+    let distinctBigrams = 0;
+    if (normalizedWords.length > 1) {
+      const bigrams = new Set<string>();
+      for (let i = 1; i < normalizedWords.length; i++) {
+        bigrams.add(`${normalizedWords[i - 1]} ${normalizedWords[i]}`);
+      }
+      distinctBigrams = bigrams.size;
+    }
+    const bigramRatio = normalizedWords.length > 1 ? distinctBigrams / (normalizedWords.length - 1) : 0;
+
+    // Average word length
+    const totalChars = normalizedWords.reduce((s, w) => s + w.length, 0);
+    const avgWordLen = normalizedWords.length ? totalChars / normalizedWords.length : 0;
+
+    // Non-alphabetical ratio
+    const raw = transcribedText;
+    const alphaChars = (raw.match(/[a-z]/gi) || []).length;
+    const nonAlphaChars = raw.replace(/\s/g, '').length - alphaChars;
+    const nonAlphaRatio = (nonAlphaChars) / Math.max(alphaChars + nonAlphaChars, 1);
+
+    // Apply strict caps
+    function cap(score: number, maxCap: number) { return Math.min(score, maxCap); }
+
+    // Content length caps
+    if (wordCount < 30) fluencyScore = cap(fluencyScore, 4);
+    else if (wordCount < 60) fluencyScore = cap(fluencyScore, 5);
+    else if (wordCount < 100) fluencyScore = cap(fluencyScore, 6);
+
+    // Speaking rate caps
+    if (rateOfSpeech < 80 || rateOfSpeech > 180) fluencyScore = cap(fluencyScore, 5);
+    if (rateOfSpeech < 70 || rateOfSpeech > 200) fluencyScore = cap(fluencyScore, 4);
+
+    // Repetition caps
+    if (maxRun >= 6) fluencyScore = cap(fluencyScore, 4);
+    else if (maxRun >= 4) fluencyScore = cap(fluencyScore, 5);
+
+    // Diversity caps
+    if (uniqueRatio < 0.55) fluencyScore = cap(fluencyScore, 4);
+    else if (uniqueRatio < 0.70) fluencyScore = cap(fluencyScore, 5);
+
+    if (bigramRatio < 0.40) fluencyScore = cap(fluencyScore, 4);
+    else if (bigramRatio < 0.60) fluencyScore = cap(fluencyScore, 5);
+
+    // Gibberish-ish cues
+    if (avgWordLen < 3.6) fluencyScore = cap(fluencyScore, 6);
+    if (nonAlphaRatio > 0.15) fluencyScore = cap(fluencyScore, 5);
+
+    // Finalize
+    fluencyScore = Math.round(fluencyScore);
+    fluencyScore = Math.max(1, Math.min(10, fluencyScore));
+
+    // ========== EXTRACT AUDIO FEATURES ==========
+    console.log("Extracting audio features from WAV file...");
+    const audioFeatures = extractAudioFeatures(wavPath!);
+
+    // ========== CALCULATE CONFIDENCE USING AUDIO FEATURES ==========
+    console.log("Calculating confidence with audio analysis...");
+    const calculatedConfidence = calculateConfidenceCategory(audioFeatures, {
+      rateOfSpeech,
+      fillerWordCount,
+      fluencyScore,
+      durationMinutes
+    });
 
     console.log("Generating AI feedback...");
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
@@ -331,7 +331,8 @@ Please provide comprehensive feedback in the following JSON format:
       "original": "unpolished sentence from the responses",
       "improved": "enhanced version of the sentence"
     }
-  ]
+  ],
+  "vocabularyScore": 8.5
 }
 
 STRICT OUTPUT RULES:
@@ -339,6 +340,7 @@ STRICT OUTPUT RULES:
 - Output STRICT JSON only. No markdown, no code fences, no extra commentary.
 - Every value must be valid JSON. Do not add parenthetical notes outside of strings.
 - Do not use placeholders like "For example..." or instructions in values; write complete improved sentences.
+- Provide vocabularyScore as a number between 0-10 based on the sophistication and appropriateness of vocabulary used in the responses.
 
 Evaluation Criteria:
 1. **Confidence Assessment**: Analyze tone, energy level, consistency, and speaking patterns. Consider that ${user.role === "work" ? "working professionals typically have more developed interview skills" : "students are still developing their professional communication skills"}.
@@ -353,45 +355,79 @@ Evaluation Criteria:
 
 6. **Sentence Improvements**: Provide 3-4 examples of actual sentences from the transcription that could be improved, along with better alternatives.
 
+7. **Vocabulary Assessment**: Evaluate the sophistication, appropriateness, and variety of vocabulary used. Consider:
+   - Use of professional terminology relevant to the role
+   - Variety in word choice (avoiding repetition)
+   - Appropriate level of formality
+   - Precision in language use
+   - Avoidance of overly casual or inappropriate language
+
 Provide actionable, specific, and encouraging feedback that helps the candidate improve their interview skills.
 `;
 
-const result = await model.generateContent(prompt);
-const responseText = result.response.text();
+    const result = await model.generateContent(prompt);
+    const responseText = result.response.text();
 
-console.log("AI Response:", responseText);
+    console.log("AI Response:", responseText);
 
-// Extract JSON from response safely
-function extractJson(text: string) {
-  // remove markdown fences if present
-  const stripped = text.replace(/```json|```/g, "").trim();
-  const match = stripped.match(/\{[\s\S]*\}/);
-  return (match ? match[0] : stripped).trim();
-}
+    // Extract JSON from response safely
+    function extractJson(text: string) {
+      // remove markdown fences if present
+      const stripped = text.replace(/```json|```/g, "").trim();
+      const match = stripped.match(/\{[\s\S]*\}/);
+      return (match ? match[0] : stripped).trim();
+    }
 
-let feedbackData: any;
-try {
-  const jsonStr = extractJson(responseText)
-    .replace(/[“”]/g, '"')  // normalize curly quotes
-    .replace(/[‘’]/g, "'");
-  feedbackData = JSON.parse(jsonStr);
-} catch (e) {
-  console.warn("Failed to parse AI JSON, using calculated confidence. Error:", e);
-  feedbackData = {
-    confidenceCategory: calculatedConfidence, // Use calculated instead of "hesitant"
-    whatWentWell: [
-      "You completed the entire interview",
-      "You provided responses to all questions",
-      "You maintained engagement throughout"
-    ],
-    areasForImprovement: [
-      "Improve structure and clarity of answers (use STAR method)",
-      "Provide more specific examples tailored to the questions",
-      "Project more confidence and reduce filler words"
-    ],
-    sentenceImprovements: []
-  };
-}
+    let feedbackData: any;
+    try {
+      const jsonStr = extractJson(responseText)
+        .replace(/[""]/g, '"')  // normalize curly quotes
+        .replace(/['']/g, "'");
+      feedbackData = JSON.parse(jsonStr);
+    } catch (e) {
+      console.warn("Failed to parse AI JSON, using calculated confidence. Error:", e);
+      feedbackData = {
+        confidenceCategory: calculatedConfidence,
+        whatWentWell: [
+          "You completed the entire interview",
+          "You provided responses to all questions",
+          "You maintained engagement throughout"
+        ],
+        areasForImprovement: [
+          "Improve structure and clarity of answers (use STAR method)",
+          "Provide more specific examples tailored to the questions",
+          "Project more confidence and reduce filler words"
+        ],
+        sentenceImprovements: [],
+        vocabularyScore: 5.0 // default fallback
+      };
+    }
+
+    let vocabularyScore = feedbackData.vocabularyScore || 5.0;
+
+    // Apply vocabulary scoring formula: (good vocab words / total words) * factor
+    // This ensures longer speeches don't get penalized unfairly
+    const goodVocabWords = [
+      "accomplished", "achieved", "analyzed", "collaborated", "communicated", "coordinated",
+      "developed", "established", "evaluated", "implemented", "improved", "initiated",
+      "led", "managed", "optimized", "organized", "planned", "resolved", "strategized",
+      "supervised", "transformed", "utilized", "leveraged", "facilitated", "demonstrated",
+      "exemplified", "showcased", "highlighted", "emphasized", "articulated", "conveyed",
+      "professional", "strategic", "systematic", "methodical", "comprehensive", "thorough",
+      "innovative", "creative", "analytical", "proactive", "results-oriented", "goal-driven"
+    ];
+
+    const vocabWords = transcribedText.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/);
+    const goodVocabCount = vocabWords.filter(word => goodVocabWords.includes(word)).length;
+    const vocabRatio = goodVocabCount / Math.max(vocabWords.length, 1);
+
+    // Apply scaling factor to prevent longer speeches from being penalized
+    // Factor increases with speech length to reward longer, well-articulated responses
+    const scalingFactor = Math.min(15, Math.max(8, vocabWords.length / 10));
+    vocabularyScore = Math.min(10, vocabRatio * scalingFactor);
+
+    // Ensure vocabulary score is within bounds
+    vocabularyScore = Math.max(1, Math.min(10, Math.round(vocabularyScore * 10) / 10));
 
     // Create recording entry
     const recording = {
@@ -436,7 +472,8 @@ try {
         fluencyScore,
         confidenceCategory: feedbackData.confidenceCategory,
         fillerWordCount,
-        durationMinutes: parseFloat(durationMinutes.toFixed(2))
+        durationMinutes: parseFloat(durationMinutes.toFixed(2)),
+        vocabularyScore
       },
       feedback: feedbackData
     });
@@ -444,9 +481,9 @@ try {
   } catch (err: any) {
     console.error("=== Error Processing Interview ===");
     console.error(err);
-    return res.status(500).json({ 
-      message: "Server error processing interview", 
-      error: err?.message || String(err) 
+    return res.status(500).json({
+      message: "Server error processing interview",
+      error: err?.message || String(err)
     });
   } finally {
     // Cleanup temp files

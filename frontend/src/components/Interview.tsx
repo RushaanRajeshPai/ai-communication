@@ -9,6 +9,7 @@ interface InterviewMetrics {
   confidenceCategory: "monotone" | "confident" | "hesitant";
   fillerWordCount: number;
   durationMinutes: number;
+  vocabularyScore: number;
 }
 
 interface SentenceImprovement {
@@ -272,10 +273,10 @@ const Interview = () => {
     const points = [
       { label: "Rate of Speech", value: rateScore, tooltip: `Speech Rate: ${metrics.rateOfSpeech} WPM` },
       { label: "Confidence", value: confidenceScore, tooltip: `Confidence: ${metrics.confidenceCategory}` },
-
-      { label: "Fluency", value: metrics.fluencyScore, tooltip: `Fluency Score: ${metrics.fluencyScore}/10` },
+      { label: "Vocabulary", value: metrics.vocabularyScore, tooltip: `Vocabulary Score: ${metrics.vocabularyScore}/10` },
+      
       { label: "Filler Words", value: fillerScore, tooltip: `Filler Words: ${metrics.fillerWordCount}` },
-      { label: "Duration", value: Math.min(10, metrics.durationMinutes * 5), tooltip: `Duration: ${Math.round(metrics.durationMinutes * 60)} sec` },
+      { label: "Fluency", value: metrics.fluencyScore, tooltip: `Fluency Score: ${metrics.fluencyScore}/10` }
     ];
 
     const size = 450;
@@ -492,12 +493,12 @@ const Interview = () => {
   if (isProcessing) {
     return (
       <div className="w-screen min-h-screen text-white flex items-center justify-center" style={{ background: "linear-gradient(135deg, rgb(27, 31, 46) 0%, rgb(20, 24, 38) 50%, rgb(15, 18, 30) 100%)" }}>
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-12 max-w-md text-center border border-white/20">
-          <Loader2 className="w-16 h-16 text-blue-400 animate-spin mx-auto mb-6" />
-          <h2 className="text-2xl font-bold mb-4">
+        <div className="bg-gradient-to-b from-gray-800 to-black backdrop-blur-lg rounded-2xl p-12 max-w-md text-center border border-white/20">
+          <Loader2 className="w-16 h-16 text-cyan-400 animate-spin mx-auto mb-6" />
+          <h2 className="text-2xl font-bold mb-4 text-white">
             Processing Your Interview
           </h2>
-          <p className="text-gray-300">
+          <p className="text-white">
             Analyzing your responses and generating personalized feedback...
           </p>
         </div>
