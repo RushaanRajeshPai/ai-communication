@@ -46,7 +46,6 @@ export default function Gd() {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [error, setError] = useState<string>('');
   
-  // New states for Bot Avatars
   const [currentSpeakingBot, setCurrentSpeakingBot] = useState<string | null>(null);
   const [currentBotText, setCurrentBotText] = useState<string>('');
   const [isUserSpeaking, setIsUserSpeaking] = useState(false);
@@ -646,7 +645,7 @@ export default function Gd() {
   const CircularDiscussion = () => {
     // 5 positions around the circle circumference
     const positions = [
-      { bottom: '82%', left: '50%', transform: 'translateX(-50%)' }, // User
+      { bottom: '80%', left: '50%', transform: 'translateX(-50%)' }, // User
       { top: '35%', right: '22%', transform: 'translateY(-50%)' }, // Top Right
       { bottom: '10%', left: '27%', transform: 'translateX(-50%)' }, // Bottom Left
       { top: '35%', left: '22%', transform: 'translateY(-50%)' }, // Top Left
@@ -657,12 +656,23 @@ export default function Gd() {
 
     return (
       <div className="relative w-full h-[600px] flex items-center justify-center">
+        <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md" style={{ backgroundColor: "rgba(27, 31, 46, 0.8)", borderBottom: "1px solid rgba(255, 255, 255, 0.1)" }}>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-20">
+              <div className="flex-shrink-0">
+                <div className="w-32 rounded-lg flex items-center justify-center" style={{ backgroundColor: "rgba(255, 255, 255, 0.05)" }}>
+                  <img src={whitelogo} alt="" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </nav>
         {/* Discussion Circle Background */}
         <div className="absolute inset-0 flex items-center justify-center mt-32">
-          <div className="w-96 h-96 rounded-full border-4 border-indigo-200/30 bg-gradient-to-br from-indigo-50/50 to-purple-50/50 flex items-center justify-center">
+          <div className="w-96 h-96 rounded-full border-4 border-indigo-200/30 bg-gradient-to-b from-gray-800 to-black backdrop-blur-lg flex items-center justify-center hover:cursor-pointer">
             <div className="text-center">
-              <div className="text-2xl font-bold text-gray-700 mb-2">Group Discussion</div>
-              <div className="text-sm text-gray-500">Topic: {topic}</div>
+              <div className="text-2xl font-bold text-white mb-4">Group Discussion</div>
+              <div className="text-lg text-white">Topic: {topic}</div>
             </div>
           </div>
         </div>
@@ -693,8 +703,8 @@ export default function Gd() {
                 </div>
                 
                 {/* Bot Name Label */}
-                <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2">
-                  <div className={`px-3 py-1 rounded-full text-xs font-medium text-white ${
+                <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2">
+                  <div className={`px-3 py-1 rounded-full text-xs font-semibold text-black ${
                     botType === 'Initiator' ? 'bg-blue-500' :
                     botType === 'Analyst' ? 'bg-purple-500' :
                     botType === 'Contrarian' ? 'bg-orange-500' :
@@ -707,7 +717,7 @@ export default function Gd() {
 
                 {/* Speaking Indicator */}
                 {isCurrentlySpeaking && (
-                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                  <div className="absolute top-40 left-1/2 transform -translate-x-1/2">
                     <div className="flex space-x-1">
                       <div className="w-2 h-2 bg-yellow-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></div>
                       <div className="w-2 h-2 bg-yellow-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></div>
@@ -726,20 +736,15 @@ export default function Gd() {
   return (
     <div className="w-screen min-h-screen p-4" style={{ background: "linear-gradient(135deg, rgb(27, 31, 46) 0%, rgb(20, 24, 38) 50%, rgb(15, 18, 30) 100%)" }}>
       <div className="max-w-6xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-          {/* Header */}
-          <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-6">
-            <h2 className="text-white text-xl md:text-2xl font-bold mb-2">Group Discussion</h2>
-            <p className="text-indigo-100 text-sm md:text-base">{topic}</p>
-          </div>
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden mt-24">
 
           {/* Circular Discussion Area */}
-          <div className="bg-gray-50 p-8">
+          <div className="bg-gray-400 p-8">
             <CircularDiscussion />
           </div>
 
           {/* Controls */}
-          <div className="bg-gray-50 p-4 border-t">
+          <div className="bg-gray-300 p-4">
             {error && (
               <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
                 {error}
@@ -769,7 +774,11 @@ export default function Gd() {
               <button
                 onClick={endDiscussionAndGetFeedback}
                 disabled={isProcessing || messages.length < 3}
-                className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 text-white font-semibold py-4 px-6 rounded-xl transition-colors"
+                className="flex-1 sm:flex-none hover:cursor-pointer text-white font-semibold transition-all transform hover:scale-105 shadow-lg py-4 px-6 rounded-xl"
+                style={{
+                  background: 'linear-gradient(135deg, rgb(13, 148, 136) 0%, rgb(37, 99, 235) 100%)',
+                  boxShadow: '0 10px 30px rgba(37, 99, 235, 0.3)'
+                }}
               >
                 {isProcessing ? (
                   <span className="flex items-center justify-center">
@@ -782,7 +791,7 @@ export default function Gd() {
               </button>
             </div>
 
-            <p className="text-center text-sm text-gray-500 mt-3">
+            <p className="text-center text-sm text-black mt-3">
               Click the microphone to join the conversation
             </p>
           </div>
