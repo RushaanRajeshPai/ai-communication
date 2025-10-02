@@ -353,14 +353,31 @@ const Story = () => {
         </nav>
       <div className="relative z-10 container mx-auto px-4 py-8 md:py-16">
         {stage === 'initial' && (
-          <div className="flex flex-col items-center justify-center min-h-[80vh] text-center">
+          <div className="flex flex-col items-center justify-center min-h-[80vh] text-center mt-16">
             <h1 className="text-4xl md:text-6xl font-bold mb-8 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-              Master Your Voice with Free Speech
+            Master the Art of Storytelling
             </h1>
             <p className="text-lg md:text-xl text-gray-300 mb-12 max-w-2xl">
-              Practice speaking on random topics and receive AI-powered feedback to improve your communication skills
+            Practice narrating stories and receive AI-powered feedback to enhance your speaking skills.
             </p>
-            <button
+
+            <div className="bg-gradient-to-b from-gray-800 to-black rounded-2xl p-8 px-12 mb-8 max-w-2xl flex flex-col items-center justify-center">
+              <div className="space-y-4 w-full">
+                <div className="flex items-start space-x-4">
+                  <Mic className="w-6 h-6 text-cyan-400 flex-shrink-0" />
+                  <div>
+                    <h3 className="font-semibold text-xl text-cyan-400">How it works</h3>
+                  </div>
+                </div>
+                <ul className="text-gray-300 space-y-2 pl-12 text-lg">
+                  <li className="flex gap-3"><span className="text-cyan-400">•</span>Get an interesting story prompt or scenario for you to narrate.</li>
+                  <li className="flex gap-3"><span className="text-cyan-400">•</span>Narrate your story aloud for up to 2 minutes.</li>
+                  <li className="flex gap-3"><span className="text-cyan-400">•</span>Your entire speech is captured seamlessly for analysis.</li>
+                  <li className="flex gap-3"><span className="text-cyan-400">•</span>Receive insights from our LLM on clarity and fluency.</li>
+                  <li className="flex gap-3"><span className="text-cyan-400">•</span>View detailed metrics to improve confidence and pacing.</li>
+                </ul>
+                <div className="flex justify-center">
+                <button
               onClick={fetchTopic}
               className="px-8 py-4 rounded-lg text-lg font-semibold transition-all transform hover:scale-105 shadow-lg"
               style={{
@@ -370,6 +387,24 @@ const Story = () => {
             >
               Get a Story Scenario
             </button>
+                </div>
+              </div>
+              {error && (
+                <div className="bg-red-600/20 border border-red-500/50 p-4 rounded-lg mb-6 max-w-2xl">
+                  <p className="text-red-300">{error}</p>
+                </div>
+              )}
+            </div>
+            {/* <button
+              onClick={fetchTopic}
+              className="px-8 py-4 rounded-lg text-lg font-semibold transition-all transform hover:scale-105 shadow-lg"
+              style={{
+                background: 'linear-gradient(135deg, rgb(13, 148, 136) 0%, rgb(37, 99, 235) 100%)',
+                boxShadow: '0 10px 30px rgba(37, 99, 235, 0.3)'
+              }}
+            >
+              Get a Story Scenario
+            </button> */}
           </div>
         )}
 
