@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import whitelogo from "../assets/whitelogo.png";
 
 const Auth: React.FC = () => {
   const [isSignup, setIsSignup] = useState(false);
@@ -54,55 +55,66 @@ const Auth: React.FC = () => {
 
 
   return (
-    <div className="w-screen min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 via-white to-green-100 p-6">
-      <div className="bg-white shadow-xl rounded-2xl w-full max-w-md p-8">
-        <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
+    <div className="w-screen min-h-screen flex items-center justify-center p-6" style={{ background: "linear-gradient(135deg, rgb(27, 31, 46) 0%, rgb(20, 24, 38) 50%, rgb(15, 18, 30) 100%)" }}>
+      <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md" style={{ backgroundColor: "rgba(27, 31, 46, 0.8)", borderBottom: "1px solid rgba(255, 255, 255, 0.1)" }}>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-20">
+              <div className="flex-shrink-0">
+                <div className="w-32 rounded-lg flex items-center justify-center" style={{ backgroundColor: "rgba(255, 255, 255, 0.05)" }}>
+                  <img src={whitelogo} alt="" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </nav>
+      <div className="bg-gradient-to-b from-gray-800 to-black shadow-xl rounded-2xl w-full max-w-md p-8 mt-32">
+        <h2 className="text-2xl font-bold text-center text-white mb-6">
           {isSignup ? "Create an Account" : "Welcome Back"}
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {isSignup && (
             <div>
-              <label className="block text-gray-600 mb-1">Full Name</label>
+              <label className="block text-white mb-1">Full Name</label>
               <input
                 type="text"
                 value={fullname}
                 onChange={(e) => setFullname(e.target.value)}
                 required
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                className="w-full text-white bg-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               />
             </div>
           )}
 
           <div>
-            <label className="block text-gray-600 mb-1">Email</label>
+            <label className="block text-white mb-1">Email</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              className="w-full text-white bg-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="block text-gray-600 mb-1">Password</label>
+            <label className="block text-white mb-1">Password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              className="w-full text-white bg-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
             />
           </div>
 
           {isSignup && (
             <div>
-              <label className="block text-gray-600 mb-1">I am a...</label>
+              <label className="block text-white mb-1">I am a...</label>
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                className="w-full text-white bg-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
               >
                 <option value="student">Student</option>
                 <option value="work">Working Professional</option>
@@ -113,12 +125,12 @@ const Auth: React.FC = () => {
           {isSignup && (
             <>
               <div>
-                <label className="block text-gray-600 mb-1">Gender</label>
+                <label className="block text-white mb-1">Gender</label>
                 <select
                   value={gender}
                   onChange={(e) => setGender(e.target.value)}
                   required
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  className="w-full text-white bg-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 >
                   <option value="male">Male</option>
                   <option value="female">Female</option>
@@ -127,13 +139,13 @@ const Auth: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-gray-600 mb-1">Age</label>
+                <label className="block text-white mb-1">Age</label>
                 <input
                   type="number"
                   value={age}
                   onChange={(e) => setAge(Number(e.target.value))}
                   required
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  className="w-full text-white bg-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
               </div>
             </>
@@ -141,21 +153,24 @@ const Auth: React.FC = () => {
 
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white font-semibold py-2 rounded-lg hover:bg-blue-700 transition"
-          >
+            className="w-full hover:scale-105 text-white font-semibold py-2 rounded-lg "
+            style={{
+              background: 'linear-gradient(135deg, rgb(13, 148, 136) 0%, rgb(37, 99, 235) 100%)',
+              boxShadow: '0 10px 30px rgba(37, 99, 235, 0.3)'
+            }}>
             {isSignup ? "Sign Up" : "Login"}
           </button>
         </form>
 
         {message && (
-          <p className="mt-4 text-center text-sm text-gray-700">{message}</p>
+          <p className="mt-4 text-center text-sm text-gray-700" >{message}</p>
         )}
 
-        <p className="mt-6 text-center text-sm text-gray-600">
+        <p className="mt-6 text-center text-sm text-white">
           {isSignup ? "Already have an account?" : "Don't have an account?"}{" "}
           <button
             onClick={() => setIsSignup(!isSignup)}
-            className="text-blue-600 font-medium hover:underline"
+            className="text-blue-600 bg-transparent font-bold hover:underline" 
           >
             {isSignup ? "Login here" : "Sign up here"}
           </button>
