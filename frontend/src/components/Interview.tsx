@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Mic, MicOff, Loader2, Check, X, CircleHelp, ClipboardList } from "lucide-react";
 import whitelogo from "../assets/whitelogo.png";
+import AIAvatar from "./AIAvatar";
 
 interface InterviewMetrics {
   rateOfSpeech: number;
@@ -661,24 +662,12 @@ const Interview = () => {
           {/* Interviewer Section */}
           <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 mb-6 border border-white/20">
             <div className="flex flex-col items-center mb-6">
-              {/* AI Avatar */}
-              <div className="relative mb-6">
-                <div className={`w-32 h-32 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center shadow-xl ${isAISpeaking ? "animate-pulse ring-4 ring-indigo-300" : ""}`}>
-                  <div className="w-28 h-28 rounded-full bg-white flex items-center justify-center">
-                    <svg className="w-20 h-20 text-indigo-600" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                    </svg>
-                  </div>
-                </div>
-                {isAISpeaking && (
-                  <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2">
-                    <div className="flex space-x-1">
-                      <div className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></div>
-                      <div className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></div>
-                      <div className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></div>
-                    </div>
-                  </div>
-                )}
+              {/* Human AI Avatar with Lip Sync */}
+              <div className="relative mb-8">
+                <AIAvatar 
+                  isSpeaking={isAISpeaking} 
+                  currentText={INTERVIEW_QUESTIONS[currentQuestion]} 
+                />
               </div>
 
               <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-2">
