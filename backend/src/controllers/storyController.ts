@@ -349,7 +349,12 @@ export const processRecording = async (req: Request, res: Response) => {
          "original": "unpolished sentence from the speech",
          "improved": "enhanced version of the sentence"
        }
-     ]
+     ],
+     "vocabularyAnalysis": {
+       "sophisticatedWords": ["word1", "word2", "word3"],
+       "vocabularyScore": 8.5,
+       "reasoning": "Brief explanation of vocabulary assessment"
+     }
    }
    
    Evaluation Criteria:
@@ -359,6 +364,15 @@ export const processRecording = async (req: Request, res: Response) => {
    4. Strengths: 3 specific positives.
    5. Improvements: 3 concrete, actionable suggestions.
    6. Sentence Improvements: 3-4 actual rewrites from the transcription.
+   7. Vocabulary Analysis: 
+      - Identify 3-10 sophisticated, professional, or advanced vocabulary words from the transcription
+      - Provide a vocabulary score (0-10) based on:
+        * Sophistication and appropriateness of word choice
+        * Use of professional terminology relevant to the role
+        * Variety in vocabulary (avoiding repetition)
+        * Appropriate level of formality
+        * Precision in language use
+      - Provide brief reasoning for the vocabulary score
    `;
    
        const result = await model.generateContent(prompt);
@@ -374,8 +388,8 @@ export const processRecording = async (req: Request, res: Response) => {
        let feedbackData: any;
        try {
          const jsonStr = extractJson(responseText)
-           .replace(/[“”]/g, '"')
-           .replace(/[‘’]/g, "'");
+           .replace(/[""]/g, '"')
+           .replace(/['']/g, "'");
          feedbackData = JSON.parse(jsonStr);
          // Ensure we keep our computed confidence if model changes it
          feedbackData.confidenceCategory = calculatedConfidence;
@@ -385,9 +399,44 @@ export const processRecording = async (req: Request, res: Response) => {
            confidenceCategory: calculatedConfidence,
            whatWentWell: ["You completed the speech", "You stayed on topic", "You maintained engagement"],
            areasForImprovement: ["Reduce filler words", "Project more confidence", "Improve structure and clarity"],
-           sentenceImprovements: []
+           sentenceImprovements: [],
+           vocabularyAnalysis: {
+             sophisticatedWords: [],
+             vocabularyScore: 5.0,
+             reasoning: "Unable to analyze vocabulary due to parsing error"
+           }
          };
        }
+
+       // Extract vocabulary score from AI analysis
+       let vocabularyScore = 5.0; //default fallback
+       if (feedbackData.vocabularyAnalysis && feedbackData.vocabularyAnalysis.vocabularyScore) {
+         vocabularyScore = Math.max(1, Math.min(10, feedbackData.vocabularyAnalysis.vocabularyScore));
+       }
+
+       // If AI provided sophisticated words, use them for additional validation
+       if (feedbackData.vocabularyAnalysis && feedbackData.vocabularyAnalysis.sophisticatedWords) {
+         const sophisticatedWords: string[] = feedbackData.vocabularyAnalysis.sophisticatedWords;
+         const vocabWords = transcribedText.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/);
+         
+         // Count how many sophisticated words were actually used
+         const sophisticatedWordCount = sophisticatedWords.filter((word: string) => 
+           vocabWords.includes(word.toLowerCase())
+         ).length;
+         
+         // Calculate ratio of sophisticated words to total words
+         const sophisticatedRatio = sophisticatedWordCount / Math.max(vocabWords.length, 1);
+         
+         // Apply scaling factor that rewards longer, well-articulated responses
+         const scalingFactor = Math.min(12, Math.max(8, vocabWords.length / 15));
+         const calculatedScore = Math.min(10, sophisticatedRatio * scalingFactor * 10);
+         
+         // Use the higher of AI score or calculated score (with 70% weight to AI assessment)
+         vocabularyScore = (feedbackData.vocabularyAnalysis.vocabularyScore * 0.7) + (calculatedScore * 0.3);
+       }
+
+       // Ensure vocabulary score is within bounds
+       vocabularyScore = Math.max(1, Math.min(10, Math.round(vocabularyScore * 10) / 10));
    
        // Create recording
        const recording = {
@@ -432,7 +481,8 @@ export const processRecording = async (req: Request, res: Response) => {
         fluencyScore,
         confidenceCategory: feedbackData.confidenceCategory,
         fillerWordCount,
-        durationMinutes: parseFloat(durationMinutes.toFixed(2))
+        durationMinutes: parseFloat(durationMinutes.toFixed(2)),
+        vocabularyScore
       },
       feedback: feedbackData
     });

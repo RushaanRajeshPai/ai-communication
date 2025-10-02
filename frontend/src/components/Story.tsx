@@ -8,6 +8,7 @@ interface Metrics {
   confidenceCategory: 'monotone' | 'confident' | 'hesitant';
   fillerWordCount: number;
   durationMinutes: number;
+  vocabularyScore: number;
 }
 
 interface SentenceImprovement {
@@ -166,9 +167,9 @@ const Story = () => {
       { label: 'Rate Of Speech', value: rateScore, tooltip: `Speech Rate: ${metrics.rateOfSpeech} WPM` },
       { label: 'Confidence', value: confidenceScore, tooltip: `Confidence: ${metrics.confidenceCategory}` },
       
-      { label: 'Fluency', value: metrics.fluencyScore, tooltip: `Fluency Score: ${metrics.fluencyScore}/10` },
       { label: 'Filler Words', value: fillerScore, tooltip: `Filler Words: ${metrics.fillerWordCount}` },
-      { label: 'Duration', value: Math.min(10, metrics.durationMinutes * 5), tooltip: `Duration: ${Math.round(metrics.durationMinutes * 60)} sec` },
+      { label: 'Vocabulary', value: metrics.vocabularyScore, tooltip: `Vocabulary Score: ${metrics.vocabularyScore}/10` },
+      { label: 'Fluency', value: metrics.fluencyScore, tooltip: `Fluency Score: ${metrics.fluencyScore}/10` },
     ];
   
     const size = 450;
@@ -267,7 +268,7 @@ const Story = () => {
                   <rect
                     x={point.x + 12}
                     y={point.y - 28}
-                    width={150}
+                    width={170}
                     height={28}
                     rx={6}
                     fill="url(#tooltipGradient)"
@@ -508,6 +509,10 @@ const Story = () => {
                   <div className="text-3xl font-bold">{feedbackData.metrics.fillerWordCount}</div>
                   <div className="text-sm text-gray-300">Filler Words</div>
                 </div>
+                {/* <div className="bg-cyan-600/20 rounded-lg p-4 text-center">
+                  <div className="text-3xl font-bold">{feedbackData.metrics.vocabularyScore}/10</div>
+                  <div className="text-sm text-gray-300">Vocabulary</div>
+                </div> */}
               </div>
             </div>
 

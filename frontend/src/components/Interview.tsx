@@ -273,9 +273,8 @@ const Interview = () => {
     const points = [
       { label: "Rate of Speech", value: rateScore, tooltip: `Speech Rate: ${metrics.rateOfSpeech} WPM` },
       { label: "Confidence", value: confidenceScore, tooltip: `Confidence: ${metrics.confidenceCategory}` },
-      { label: "Vocabulary", value: metrics.vocabularyScore, tooltip: `Vocabulary Score: ${metrics.vocabularyScore}/10` },
-      
       { label: "Filler Words", value: fillerScore, tooltip: `Filler Words: ${metrics.fillerWordCount}` },
+      { label: "Vocabulary", value: metrics.vocabularyScore, tooltip: `Vocabulary Score: ${metrics.vocabularyScore}/10` },
       { label: "Fluency", value: metrics.fluencyScore, tooltip: `Fluency Score: ${metrics.fluencyScore}/10` }
     ];
 
