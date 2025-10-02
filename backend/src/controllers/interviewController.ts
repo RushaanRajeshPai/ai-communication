@@ -332,7 +332,11 @@ Please provide comprehensive feedback in the following JSON format:
       "improved": "enhanced version of the sentence"
     }
   ],
-  "vocabularyScore": 8.5
+  "vocabularyAnalysis": {
+    "sophisticatedWords": ["word1", "word2", "word3"],
+    "vocabularyScore": 8.5,
+    "reasoning": "Brief explanation of vocabulary assessment"
+  }
 }
 
 STRICT OUTPUT RULES:
@@ -340,7 +344,6 @@ STRICT OUTPUT RULES:
 - Output STRICT JSON only. No markdown, no code fences, no extra commentary.
 - Every value must be valid JSON. Do not add parenthetical notes outside of strings.
 - Do not use placeholders like "For example..." or instructions in values; write complete improved sentences.
-- Provide vocabularyScore as a number between 0-10 based on the sophistication and appropriateness of vocabulary used in the responses.
 
 Evaluation Criteria:
 1. **Confidence Assessment**: Analyze tone, energy level, consistency, and speaking patterns. Consider that ${user.role === "work" ? "working professionals typically have more developed interview skills" : "students are still developing their professional communication skills"}.
@@ -355,79 +358,90 @@ Evaluation Criteria:
 
 6. **Sentence Improvements**: Provide 3-4 examples of actual sentences from the transcription that could be improved, along with better alternatives.
 
-7. **Vocabulary Assessment**: Evaluate the sophistication, appropriateness, and variety of vocabulary used. Consider:
-   - Use of professional terminology relevant to the role
-   - Variety in word choice (avoiding repetition)
-   - Appropriate level of formality
-   - Precision in language use
-   - Avoidance of overly casual or inappropriate language
+7. **Vocabulary Analysis**: 
+   - Identify 3-10 sophisticated, professional, or advanced vocabulary words from the transcription
+   - Provide a vocabulary score (0-10) based on:
+     * Sophistication and appropriateness of word choice
+     * Use of professional terminology relevant to the role
+     * Variety in vocabulary (avoiding repetition)
+     * Appropriate level of formality
+     * Precision in language use
+   - Provide brief reasoning for the vocabulary score
 
 Provide actionable, specific, and encouraging feedback that helps the candidate improve their interview skills.
 `;
 
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
+const result = await model.generateContent(prompt);
+const responseText = result.response.text();
 
-    console.log("AI Response:", responseText);
+console.log("AI Response:", responseText);
 
-    // Extract JSON from response safely
-    function extractJson(text: string) {
-      // remove markdown fences if present
-      const stripped = text.replace(/```json|```/g, "").trim();
-      const match = stripped.match(/\{[\s\S]*\}/);
-      return (match ? match[0] : stripped).trim();
+// Extract JSON from response safely
+function extractJson(text: string) {
+  // remove markdown fences if present
+  const stripped = text.replace(/```json|```/g, "").trim();
+  const match = stripped.match(/\{[\s\S]*\}/);
+  return (match ? match[0] : stripped).trim();
+}
+
+let feedbackData: any;
+try {
+  const jsonStr = extractJson(responseText)
+    .replace(/[""]/g, '"')  // normalize curly quotes
+    .replace(/['']/g, "'");
+  feedbackData = JSON.parse(jsonStr);
+} catch (e) {
+  console.warn("Failed to parse AI JSON, using calculated confidence. Error:", e);
+  feedbackData = {
+    confidenceCategory: calculatedConfidence,
+    whatWentWell: [
+      "You completed the entire interview",
+      "You provided responses to all questions",
+      "You maintained engagement throughout"
+    ],
+    areasForImprovement: [
+      "Improve structure and clarity of answers (use STAR method)",
+      "Provide more specific examples tailored to the questions",
+      "Project more confidence and reduce filler words"
+    ],
+    sentenceImprovements: [],
+    vocabularyAnalysis: {
+      sophisticatedWords: [],
+      vocabularyScore: 5.0,
+      reasoning: "Unable to analyze vocabulary due to parsing error"
     }
+  };
+}
 
-    let feedbackData: any;
-    try {
-      const jsonStr = extractJson(responseText)
-        .replace(/[""]/g, '"')  // normalize curly quotes
-        .replace(/['']/g, "'");
-      feedbackData = JSON.parse(jsonStr);
-    } catch (e) {
-      console.warn("Failed to parse AI JSON, using calculated confidence. Error:", e);
-      feedbackData = {
-        confidenceCategory: calculatedConfidence,
-        whatWentWell: [
-          "You completed the entire interview",
-          "You provided responses to all questions",
-          "You maintained engagement throughout"
-        ],
-        areasForImprovement: [
-          "Improve structure and clarity of answers (use STAR method)",
-          "Provide more specific examples tailored to the questions",
-          "Project more confidence and reduce filler words"
-        ],
-        sentenceImprovements: [],
-        vocabularyScore: 5.0 // default fallback
-      };
-    }
+// Extract vocabulary score from AI analysis
+let vocabularyScore = 5.0; // Default fallback
+if (feedbackData.vocabularyAnalysis && feedbackData.vocabularyAnalysis.vocabularyScore) {
+  vocabularyScore = Math.max(1, Math.min(10, feedbackData.vocabularyAnalysis.vocabularyScore));
+}
 
-    let vocabularyScore = feedbackData.vocabularyScore || 5.0;
+// If AI provided sophisticated words, use them for additional validation
+if (feedbackData.vocabularyAnalysis && feedbackData.vocabularyAnalysis.sophisticatedWords) {
+  const sophisticatedWords: string[] = feedbackData.vocabularyAnalysis.sophisticatedWords;
+  const vocabWords = transcribedText.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/);
+  
+  // Count how many sophisticated words were actually used
+  const sophisticatedWordCount = sophisticatedWords.filter((word: string) => 
+    vocabWords.includes(word.toLowerCase())
+  ).length;
+  
+  // Calculate ratio of sophisticated words to total words
+  const sophisticatedRatio = sophisticatedWordCount / Math.max(vocabWords.length, 1);
+  
+  // Apply scaling factor that rewards longer, well-articulated responses
+  const scalingFactor = Math.min(12, Math.max(8, vocabWords.length / 15));
+  const calculatedScore = Math.min(10, sophisticatedRatio * scalingFactor * 10);
+  
+  // Use the higher of AI score or calculated score (with 70% weight to AI assessment)
+  vocabularyScore = (feedbackData.vocabularyAnalysis.vocabularyScore * 0.7) + (calculatedScore * 0.3);
+}
 
-    // Apply vocabulary scoring formula: (good vocab words / total words) * factor
-    // This ensures longer speeches don't get penalized unfairly
-    const goodVocabWords = [
-      "accomplished", "achieved", "analyzed", "collaborated", "communicated", "coordinated",
-      "developed", "established", "evaluated", "implemented", "improved", "initiated",
-      "led", "managed", "optimized", "organized", "planned", "resolved", "strategized",
-      "supervised", "transformed", "utilized", "leveraged", "facilitated", "demonstrated",
-      "exemplified", "showcased", "highlighted", "emphasized", "articulated", "conveyed",
-      "professional", "strategic", "systematic", "methodical", "comprehensive", "thorough",
-      "innovative", "creative", "analytical", "proactive", "results-oriented", "goal-driven"
-    ];
-
-    const vocabWords = transcribedText.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/);
-    const goodVocabCount = vocabWords.filter(word => goodVocabWords.includes(word)).length;
-    const vocabRatio = goodVocabCount / Math.max(vocabWords.length, 1);
-
-    // Apply scaling factor to prevent longer speeches from being penalized
-    // Factor increases with speech length to reward longer, well-articulated responses
-    const scalingFactor = Math.min(15, Math.max(8, vocabWords.length / 10));
-    vocabularyScore = Math.min(10, vocabRatio * scalingFactor);
-
-    // Ensure vocabulary score is within bounds
-    vocabularyScore = Math.max(1, Math.min(10, Math.round(vocabularyScore * 10) / 10));
+// Ensure vocabulary score is within bounds
+vocabularyScore = Math.max(1, Math.min(10, Math.round(vocabularyScore * 10) / 10));
 
     // Create recording entry
     const recording = {

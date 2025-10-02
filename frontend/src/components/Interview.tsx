@@ -370,7 +370,7 @@ const Interview = () => {
                   <rect
                     x={point.x + 12}
                     y={point.y - 28}
-                    width={150}
+                    width={170}
                     height={28}
                     rx={6}
                     fill="url(#tooltipGradient)"
@@ -493,7 +493,7 @@ const Interview = () => {
   if (isProcessing) {
     return (
       <div className="w-screen min-h-screen text-white flex items-center justify-center" style={{ background: "linear-gradient(135deg, rgb(27, 31, 46) 0%, rgb(20, 24, 38) 50%, rgb(15, 18, 30) 100%)" }}>
-        <div className="bg-gradient-to-b from-gray-800 to-black backdrop-blur-lg rounded-2xl p-12 max-w-md text-center border border-white/20">
+        <div className="bg-gradient-to-b from-gray-800 to-black backdrop-blur-lg rounded-2xl p-12 max-w-md text-center">
           <Loader2 className="w-16 h-16 text-cyan-400 animate-spin mx-auto mb-6" />
           <h2 className="text-2xl font-bold mb-4 text-white">
             Processing Your Interview
