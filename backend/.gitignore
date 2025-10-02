@@ -45,10 +45,6 @@ models/
 *.onnx.json
 *.bin
 
-# Package manager lock files (optional, keep only one)
-# yarn.lock
-# pnpm-lock.yaml
-
 # Docker
 docker-compose.override.yml
 .docker/
@@ -58,3 +54,19 @@ docker-compose.override.yml
 *.log
 *.bak
 *.cache
+
+# Audio/Video files
+*.webm
+*.mp3
+*.mp4
+*.wav
+*.ogg
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Additional temporary files
+*.pid
+*.seed
