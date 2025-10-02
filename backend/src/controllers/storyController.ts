@@ -20,27 +20,28 @@ const WHISPER_BIN = path.resolve((process.env.WHISPER_CPP_BIN || "main").trim())
 const WHISPER_MODEL = path.resolve((process.env.WHISPER_CPP_MODEL || "models/ggml-base.en.bin").trim());
 
 const FREE_TOPICS = [
-  "The importance of punctuality",
-  "Why reading books is still valuable",
-  "How exercise keeps us happy and healthy",
-  "The role of friendship in our lives",
-  "Why kindness costs nothing but means a lot",
-  "The habit of saying 'thank you'",
-  "Why we should reduce plastic use",
-  "The joy of learning new skills",
-  "The importance of teamwork",
-  "Why failure is a stepping stone to success",
-  "Good manners in daily life",
-  "The benefits of eating homemade food",
-  "The value of honesty",
-  "Why we should respect our parents and teachers",
-  "The habit of saving money",
-  "The importance of sleep",
-  "Why laughter is the best medicine",
-  "The need to protect animals and birds",
-  "The role of discipline in student life",
-  "Why technology should be used wisely"
+  "A time when you failed at something important but learned a powerful life lesson",
+  "The story of a stranger's small act of kindness that changed your day",
+  "How facing a fear (public speaking, heights, rejection, etc.) shaped your confidence",
+  "The moment you realized the importance of family or friendship",
+  "A childhood memory that still inspires your values today",
+  "The funniest or most embarrassing incident in class",
+  "A teacher who changed the way you look at life",
+  "The first time you participated in a competition or event",
+  "A group project that went hilariously wrong (but taught teamwork)",
+  "The day you broke the rules — and what happened next",
+  "Getting lost in a new city and the unexpected adventure that followed",
+  "What you would do if you woke up invisible for a day",
+  "A journey through time — meeting your younger or future self",
+  "An ordinary object (like a pen or key) that turned out to have magical powers",
+  "The story of a parallel world where everything is the opposite of ours",
+  "A story of someone who chased their dream despite all odds",
+  "How technology or an invention changed your life",
+  "A story about resilience — falling down seven times, standing up eight",
+  "An inspiring journey of a sports team, artist, or innovator",
+  "How a simple decision one morning completely changed your life’s direction"
 ];
+
 
 export const getRandomTopic = async (req: Request, res: Response) => {
   try {

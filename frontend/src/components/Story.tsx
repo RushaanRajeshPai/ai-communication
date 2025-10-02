@@ -28,7 +28,7 @@ interface FeedbackResponse {
   feedback: FeedbackData;
 }
 
-const FreeTopic = () => {
+const Story = () => {
   const [stage, setStage] = useState<'initial' | 'recording' | 'processing' | 'feedback'>('initial');
   const [topic, setTopic] = useState<string>('');
   const [timeLeft, setTimeLeft] = useState<number>(120);
@@ -362,9 +362,13 @@ const FreeTopic = () => {
             </p>
             <button
               onClick={fetchTopic}
-              className="px-8 py-4 bg-blue-600 hover:bg-blue-700 rounded-lg text-lg font-semibold transition-all transform hover:scale-105 shadow-lg"
+              className="px-8 py-4 rounded-lg text-lg font-semibold transition-all transform hover:scale-105 shadow-lg"
+              style={{
+                background: 'linear-gradient(135deg, rgb(13, 148, 136) 0%, rgb(37, 99, 235) 100%)',
+                boxShadow: '0 10px 30px rgba(37, 99, 235, 0.3)'
+              }}
             >
-              Ask for a Topic to Speak Upon
+              Get a Story Scenario
             </button>
           </div>
         )}
@@ -559,4 +563,4 @@ const FreeTopic = () => {
   );
 };
 
-export default FreeTopic;
+export default Story;
