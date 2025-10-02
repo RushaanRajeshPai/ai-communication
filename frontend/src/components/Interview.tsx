@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Mic, MicOff, Loader2, Check, X } from "lucide-react";
+import { Mic, MicOff, Loader2, Check, X, CircleHelp, ClipboardList } from "lucide-react";
 import whitelogo from "../assets/whitelogo.png";
 
 interface InterviewMetrics {
@@ -51,7 +51,7 @@ const Interview = () => {
   const [interviewCompleted, setInterviewCompleted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<InterviewResponse | null>(null);
-  
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const allAudioChunksRef = useRef<Blob[]>([]);
@@ -81,20 +81,20 @@ const Interview = () => {
 
       const utterance = new SpeechSynthesisUtterance(questionText);
       utteranceRef.current = utterance;
-      
+
       const voices = window.speechSynthesis.getVoices();
-      const femaleVoice = voices.find(voice => 
-        voice.name.includes("Female") || 
+      const femaleVoice = voices.find(voice =>
+        voice.name.includes("Female") ||
         voice.name.includes("Samantha") ||
         voice.name.includes("Victoria") ||
         voice.name.includes("Karen") ||
         (voice.name.includes("Google") && voice.name.includes("UK"))
       );
-      
+
       if (femaleVoice) {
         utterance.voice = femaleVoice;
       }
-      
+
       utterance.rate = 0.9;
       utterance.pitch = 1.1;
       utterance.volume = 1;
@@ -128,7 +128,7 @@ const Interview = () => {
 
     setInterviewStarted(true);
     setError(null);
-    
+
     if (window.speechSynthesis.getVoices().length === 0) {
       await new Promise<void>((resolve) => {
         window.speechSynthesis.onvoiceschanged = () => resolve();
@@ -142,18 +142,18 @@ const Interview = () => {
 
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
+      const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           channelCount: 1,
           sampleRate: 16000,
           echoCancellation: true,
           noiseSuppression: true
-        } 
+        }
       });
 
       const preferred =
         MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" :
-        MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "";
+          MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "";
 
       mimeTypeRef.current = preferred || "audio/webm";
 
@@ -170,7 +170,7 @@ const Interview = () => {
 
       mediaRecorder.start(1000);
       setIsRecording(true);
-      
+
       if (currentQuestion === 0) {
         startTimeRef.current = Date.now();
       }
@@ -208,14 +208,14 @@ const Interview = () => {
 
   const completeInterview = async () => {
     setIsProcessing(true);
-    
+
     try {
       const fullAudioBlob = new Blob(allAudioChunksRef.current, { type: mimeTypeRef.current });
       const totalDuration = (Date.now() - startTimeRef.current) / 1000;
 
       const reader = new FileReader();
       reader.readAsDataURL(fullAudioBlob);
-      
+
       reader.onloadend = async () => {
         const base64Audio = reader.result as string;
 
@@ -264,24 +264,24 @@ const Interview = () => {
   const PentagonChart = ({ metrics }: { metrics: InterviewMetrics }) => {
     const confidenceScore =
       metrics.confidenceCategory === "confident" ? 8 :
-      metrics.confidenceCategory === "monotone" ? 5 : 3;
+        metrics.confidenceCategory === "monotone" ? 5 : 3;
     const fillerScore = Math.max(0, 10 - metrics.fillerWordCount);
     const rateScore = Math.min(10, Math.max(0, (metrics.rateOfSpeech / 150) * 10));
-  
+
     const points = [
-        { label: "Rate of Speech", value: rateScore, tooltip: `Speech Rate: ${metrics.rateOfSpeech} WPM` },
+      { label: "Rate of Speech", value: rateScore, tooltip: `Speech Rate: ${metrics.rateOfSpeech} WPM` },
       { label: "Confidence", value: confidenceScore, tooltip: `Confidence: ${metrics.confidenceCategory}` },
-      
+
       { label: "Fluency", value: metrics.fluencyScore, tooltip: `Fluency Score: ${metrics.fluencyScore}/10` },
       { label: "Filler Words", value: fillerScore, tooltip: `Filler Words: ${metrics.fillerWordCount}` },
       { label: "Duration", value: Math.min(10, metrics.durationMinutes * 5), tooltip: `Duration: ${Math.round(metrics.durationMinutes * 60)} sec` },
     ];
-  
+
     const size = 450;
     const center = size / 2;
     const radius = size / 2 - 90;
     const angleStep = (Math.PI * 2) / points.length;
-  
+
     const calculatePoint = (index: number, value: number) => {
       const angle = angleStep * index - Math.PI / 2;
       const r = (value / 10) * radius;
@@ -290,47 +290,47 @@ const Interview = () => {
         y: center + r * Math.sin(angle),
       };
     };
-  
+
     const dataPoints = points.map((p, i) => calculatePoint(i, p.value));
     const maxPoints = points.map((_, i) => calculatePoint(i, 10));
     const pathData = dataPoints.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ") + " Z";
     const maxPathData = maxPoints
-    .map((point, i) => `${i === 0 ? "M" : "L"} ${point.x} ${point.y}`)
-    .join(" ") + " Z";  
-  
+      .map((point, i) => `${i === 0 ? "M" : "L"} ${point.x} ${point.y}`)
+      .join(" ") + " Z";
+
     const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  
+
     return (
       <div className="flex flex-col items-center relative">
         <svg width={size} height={size} className="mb-4">
           <defs>
             <filter id="glow">
-              <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+              <feGaussianBlur stdDeviation="3" result="coloredBlur" />
               <feMerge>
-                <feMergeNode in="coloredBlur"/>
-                <feMergeNode in="SourceGraphic"/>
+                <feMergeNode in="coloredBlur" />
+                <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
             <linearGradient id="tooltipGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.8"/>
-              <stop offset="100%" stopColor="#60a5fa" stopOpacity="0.8"/>
+              <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.8" />
+              <stop offset="100%" stopColor="#60a5fa" stopOpacity="0.8" />
             </linearGradient>
           </defs>
-  
+
           <path d={maxPathData} fill="none" stroke="rgba(71, 85, 105, 0.5)" strokeWidth="2" />
-  
+
           {maxPoints.map((point, i) => (
-            <line 
-              key={i} 
-              x1={center} 
-              y1={center} 
-              x2={point.x} 
-              y2={point.y} 
-              stroke="rgba(40, 50, 65, 0.5)" 
-              strokeWidth="2" 
+            <line
+              key={i}
+              x1={center}
+              y1={center}
+              x2={point.x}
+              y2={point.y}
+              stroke="rgba(40, 50, 65, 0.5)"
+              strokeWidth="2"
             />
           ))}
-  
+
           {[0.33, 0.66, 1].map((scale, idx) => {
             const ringPoints = points.map((_, i) => calculatePoint(i, 10 * scale));
             const ringPath = ringPoints.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ") + " Z";
@@ -344,15 +344,15 @@ const Interview = () => {
               />
             );
           })}
-  
-          <path 
-            d={pathData} 
-            fill="rgba(96, 165, 250, 0.4)" 
-            stroke="#3b82f6" 
+
+          <path
+            d={pathData}
+            fill="rgba(96, 165, 250, 0.4)"
+            stroke="#3b82f6"
             strokeWidth="2.5"
             filter="url(#glow)"
           />
-  
+
           {dataPoints.map((point, i) => (
             <g
               key={i}
@@ -362,7 +362,7 @@ const Interview = () => {
             >
               <circle cx={point.x} cy={point.y} r="6" fill="#1e3a8a" opacity="0.5" />
               <circle cx={point.x} cy={point.y} r="4" fill="#60a5fa" filter="url(#glow)" />
-  
+
               {hoveredIndex === i && (
                 <g>
                   <rect
@@ -389,7 +389,7 @@ const Interview = () => {
               )}
             </g>
           ))}
-  
+
           {maxPoints.map((point, i) => {
             const angle = angleStep * i - Math.PI / 2;
             const cos = Math.cos(angle);
@@ -397,10 +397,10 @@ const Interview = () => {
             const labelR = radius + 35;
             const labelX = center + labelR * cos;
             const labelY = center + labelR * sin;
-  
+
             const adjustedX = i === 1 ? labelX + 12 : labelX;
             const adjustedY = i === 0 ? labelY + 8 : labelY;
-  
+
             return (
               <text
                 key={i}
@@ -437,37 +437,51 @@ const Interview = () => {
         </nav>
 
         <div className="relative z-10 container mx-auto px-4 py-8 md:py-16">
-          <div className="flex flex-col items-center justify-center min-h-[80vh] text-center">
+          <div className="flex flex-col items-center justify-center min-h-[80vh] text-center mt-16">
             <h1 className="text-4xl md:text-6xl font-bold mb-8 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
               AI Interview Simulation
             </h1>
             <p className="text-lg md:text-xl text-gray-300 mb-12 max-w-2xl">
               Practice your interview skills with AI-powered feedback on 10 common interview questions
             </p>
-            
-            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 mb-8 max-w-2xl border border-white/20">
-              <h3 className="font-semibold text-blue-300 mb-3 text-lg">Interview Format:</h3>
-              <ul className="text-gray-300 space-y-2 text-left text-sm">
-                <li className="flex gap-3"><span className="text-blue-400">•</span>10 common interview questions</li>
-                <li className="flex gap-3"><span className="text-blue-400">•</span>AI interviewer will ask each question via voice</li>
-                <li className="flex gap-3"><span className="text-blue-400">•</span>Respond naturally to each question</li>
-                <li className="flex gap-3"><span className="text-blue-400">•</span>Click "Next Question" when you're done answering</li>
-                <li className="flex gap-3"><span className="text-blue-400">•</span>Receive detailed feedback after completion</li>
-              </ul>
+
+            <div className="bg-gradient-to-b from-gray-800 to-black rounded-2xl p-8 px-12 mb-8 max-w-2xl flex flex-col items-center justify-center">
+              <div className="space-y-4 w-full">
+                <div className="flex items-start space-x-4">
+                  <CircleHelp className="w-6 h-6 text-cyan-400 flex-shrink-0" />
+                  <div>
+                    <h3 className="font-semibold text-xl text-cyan-400">How it works</h3>
+                  </div>
+                </div>
+                <ul className="text-gray-300 space-y-2 pl-12 text-lg">
+                  <li className="flex gap-3"><span className="text-cyan-400">•</span>10 common interview questions</li>
+                  <li className="flex gap-3"><span className="text-cyan-400">•</span>AI interviewer will ask each question via voice</li>
+                  <li className="flex gap-3"><span className="text-cyan-400">•</span>Respond naturally to each question</li>
+                  <li className="flex gap-3"><span className="text-cyan-400">•</span>Click "Next Question" when you're done answering</li>
+                  <li className="flex gap-3"><span className="text-cyan-400">•</span>Receive detailed feedback after completion</li>
+                </ul>
+                <div className="flex justify-center">
+                  <button
+                    onClick={startInterview}
+                    className="px-8 py-4 rounded-lg text-lg font-semibold transition-all transform hover:scale-105 shadow-lg flex flex-row gap-4"
+                    style={{
+                      background: 'linear-gradient(135deg, rgb(13, 148, 136) 0%, rgb(37, 99, 235) 100%)',
+                      boxShadow: '0 10px 30px rgba(37, 99, 235, 0.3)'
+                    }}
+                  >
+                    <ClipboardList className="w-6 h-6" />
+                    Start Mock Interview
+                  </button>
+                </div>
+              </div>
+              {error && (
+                <div className="bg-red-600/20 border border-red-500/50 p-4 rounded-lg mb-6 max-w-2xl">
+                  <p className="text-red-300">{error}</p>
+                </div>
+              )}
             </div>
 
-            {error && (
-              <div className="bg-red-600/20 border border-red-500/50 p-4 rounded-lg mb-6 max-w-2xl">
-                <p className="text-red-300">{error}</p>
-              </div>
-            )}
 
-            <button
-              onClick={startInterview}
-              className="px-8 py-4 bg-blue-600 hover:bg-blue-700 rounded-lg text-lg font-semibold transition-all transform hover:scale-105 shadow-lg"
-            >
-              Start Interview
-            </button>
           </div>
         </div>
       </div>
@@ -652,7 +666,7 @@ const Interview = () => {
                 <div className={`w-32 h-32 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center shadow-xl ${isAISpeaking ? "animate-pulse ring-4 ring-indigo-300" : ""}`}>
                   <div className="w-28 h-28 rounded-full bg-white flex items-center justify-center">
                     <svg className="w-20 h-20 text-indigo-600" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
                     </svg>
                   </div>
                 </div>
@@ -717,11 +731,10 @@ const Interview = () => {
             <button
               onClick={nextQuestion}
               disabled={!isRecording || isAISpeaking}
-              className={`w-full py-4 rounded-lg font-semibold text-lg transition-all shadow-lg ${
-                isRecording && !isAISpeaking
-                  ? "bg-green-600 hover:bg-green-700 text-white transform hover:scale-105"
-                  : "bg-gray-600 text-gray-400 cursor-not-allowed"
-              }`}
+              className={`w-full py-4 rounded-lg font-semibold text-lg transition-all shadow-lg ${isRecording && !isAISpeaking
+                ? "bg-green-600 hover:bg-green-700 text-white transform hover:scale-105"
+                : "bg-gray-600 text-gray-400 cursor-not-allowed"
+                }`}
             >
               {currentQuestion === INTERVIEW_QUESTIONS.length - 1
                 ? "Complete Interview"
