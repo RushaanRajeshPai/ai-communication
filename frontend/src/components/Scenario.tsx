@@ -419,8 +419,8 @@ const Scenario: React.FC = () => {
                     onClick={() => { console.log('Scroll to scenarios'); /* define your scrollToSection function */ }}
                     className="px-8 py-4 rounded-full font-semibold transition-all transform hover:scale-105 hover:shadow-2xl text-white"
                     style={{
-                      background: 'linear-gradient(135deg, rgb(103, 232, 249) 0%, rgb(45, 152, 218) 100%)',
-                      boxShadow: '0 10px 30px rgba(103, 232, 249, 0.3)'
+                      background: 'linear-gradient(135deg, rgb(13, 148, 136) 0%, rgb(37, 99, 235) 100%)',
+                      boxShadow: '0 10px 30px rgba(37, 99, 235, 0.3)'
                     }}
                   >
                     Get Started
