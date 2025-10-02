@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Mic, Square, Users, MessageCircle, Loader2, Trophy, Check, X } from 'lucide-react';
 import whitelogo from "../assets/whitelogo.png";
+import BotAvatar from "./BotAvatar";
 
 interface Bot {
   name: string;
@@ -44,6 +45,11 @@ export default function Gd() {
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [error, setError] = useState<string>('');
+  
+  // New states for Bot Avatars
+  const [currentSpeakingBot, setCurrentSpeakingBot] = useState<string | null>(null);
+  const [currentBotText, setCurrentBotText] = useState<string>('');
+  const [isUserSpeaking, setIsUserSpeaking] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -122,12 +128,18 @@ export default function Gd() {
 
       const data = await response.json();
 
+      // Set the current speaking bot and text for Bot Avatar
+      setCurrentSpeakingBot(botName);
+      setCurrentBotText(data.text);
+
       if (data.audioData) {
         const audio = new Audio(data.audioData);
         audio.play();
 
         audio.onended = () => {
           setBots(prev => prev.map(b => ({ ...b, speaking: false })));
+          setCurrentSpeakingBot(null);
+          setCurrentBotText('');
 
           if (trigger === 'initiate') {
             setTimeout(() => {
@@ -148,6 +160,8 @@ export default function Gd() {
     } catch (err: any) {
       console.error('Bot response error:', err);
       setBots(prev => prev.map(b => ({ ...b, speaking: false })));
+      setCurrentSpeakingBot(null);
+      setCurrentBotText('');
     }
   };
 
@@ -166,6 +180,7 @@ export default function Gd() {
 
   const startRecording = async () => {
     try {
+      setIsUserSpeaking(true);
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
@@ -178,6 +193,7 @@ export default function Gd() {
       };
 
       mediaRecorder.onstop = async () => {
+        setIsUserSpeaking(false);
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         await processUserAudio(audioBlob);
         stream.getTracks().forEach(track => track.stop());
@@ -187,6 +203,7 @@ export default function Gd() {
       setIsRecording(true);
     } catch (err: any) {
       setError('Could not access microphone. Please grant permission.');
+      setIsUserSpeaking(false);
     }
   };
 
@@ -626,13 +643,46 @@ export default function Gd() {
   }
 
   return (
-    <div className="w-screen min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-4">
+    <div className="w-screen min-h-screen p-4" style={{ background: "linear-gradient(135deg, rgb(27, 31, 46) 0%, rgb(20, 24, 38) 50%, rgb(15, 18, 30) 100%)" }}>
       <div className="max-w-6xl mx-auto">
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
           {/* Header */}
           <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-6">
             <h2 className="text-white text-xl md:text-2xl font-bold mb-2">Group Discussion</h2>
             <p className="text-indigo-100 text-sm md:text-base">{topic}</p>
+          </div>
+
+          {/* Bot Avatar Section */}
+          <div className="bg-gray-50 p-6 border-b">
+            <div className="flex justify-center">
+              {currentSpeakingBot ? (
+                <BotAvatar 
+                  isSpeaking={true} 
+                  currentText={currentBotText} 
+                  botType={currentSpeakingBot as 'Initiator' | 'Analyst' | 'Contrarian' | 'Mediator'}
+                />
+              ) : isUserSpeaking ? (
+                <BotAvatar 
+                  isSpeaking={true} 
+                  currentText="User is speaking..." 
+                  botType="User"
+                />
+              ) : (
+                <div className="w-64 h-64 flex items-center justify-center">
+                  <div className="text-gray-400 text-lg">Waiting for discussion to begin...</div>
+                </div>
+              )}
+            </div>
+            {(currentSpeakingBot || isUserSpeaking) && (
+              <div className="text-center mt-4">
+                <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-indigo-100">
+                  <div className={`w-3 h-3 rounded-full ${getBotColor(currentSpeakingBot || 'User')} animate-pulse`} />
+                  <span className="text-sm font-medium text-indigo-800">
+                    {currentSpeakingBot ? `${currentSpeakingBot} is speaking` : 'You are speaking'}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Participants */}
