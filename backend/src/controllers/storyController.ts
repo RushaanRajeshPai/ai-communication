@@ -391,7 +391,6 @@ export const processRecording = async (req: Request, res: Response) => {
            .replace(/[""]/g, '"')
            .replace(/['']/g, "'");
          feedbackData = JSON.parse(jsonStr);
-         // Ensure we keep our computed confidence if model changes it
          feedbackData.confidenceCategory = calculatedConfidence;
        } catch (e) {
          console.warn("Failed to parse AI JSON, using calculated confidence. Error:", e);
@@ -408,39 +407,32 @@ export const processRecording = async (req: Request, res: Response) => {
          };
        }
 
-       // Extract vocabulary score from AI analysis
+       //extract vocabulary score from AI analysis
        let vocabularyScore = 5.0; //default fallback
        if (feedbackData.vocabularyAnalysis && feedbackData.vocabularyAnalysis.vocabularyScore) {
          vocabularyScore = Math.max(1, Math.min(10, feedbackData.vocabularyAnalysis.vocabularyScore));
        }
 
-       // If AI provided sophisticated words, use them for additional validation
        if (feedbackData.vocabularyAnalysis && feedbackData.vocabularyAnalysis.sophisticatedWords) {
          const sophisticatedWords: string[] = feedbackData.vocabularyAnalysis.sophisticatedWords;
          const vocabWords = transcribedText.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/);
          
-         // Count how many sophisticated words were actually used
          const sophisticatedWordCount = sophisticatedWords.filter((word: string) => 
            vocabWords.includes(word.toLowerCase())
          ).length;
-         
-         // Calculate ratio of sophisticated words to total words
+
          const sophisticatedRatio = sophisticatedWordCount / Math.max(vocabWords.length, 1);
          
-         // Apply scaling factor that rewards longer, well-articulated responses
          const scalingFactor = Math.min(12, Math.max(8, vocabWords.length / 15));
          const calculatedScore = Math.min(10, sophisticatedRatio * scalingFactor * 10);
-         
-         // Use the higher of AI score or calculated score (with 70% weight to AI assessment)
+
          vocabularyScore = (feedbackData.vocabularyAnalysis.vocabularyScore * 0.7) + (calculatedScore * 0.3);
        }
-
-       // Ensure vocabulary score is within bounds
+  
        vocabularyScore = Math.max(1, Math.min(10, Math.round(vocabularyScore * 10) / 10));
    
-       // Create recording
        const recording = {
-         scenario: "Free Topic",
+         scenario: "Storytelling",
          transcription: transcribedText,
          durationMinutes: parseFloat(durationMinutes.toFixed(2)),
          fillerWordCount,
