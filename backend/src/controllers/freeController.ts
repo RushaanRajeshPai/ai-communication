@@ -116,10 +116,8 @@ export const handleSilenceTimeout = async (
     let response = "";
     if (conversation.silenceWarnings === 1) {
       response = "Hey, are you there?";
-    } else if (conversation.silenceWarnings === 2) {
-      response = "Do you wish to continue this conversation?";
-    } else if (conversation.silenceWarnings >= 3) {
-      response = "Cool, maybe you don't wish to have a conversation further. I'll end it.";
+    } else if (conversation.silenceWarnings >= 2) {
+      response = "Okay i am guessing you have left and I would end this conversation.";
       
       setTimeout(() => {
         io.to(conversationId).emit('conversation-ended', { reason: 'inactivity' });
@@ -218,22 +216,34 @@ Provide feedback in JSON format:
   }
 }`;
 
-      // OPTIMIZATION 4: Add timeout to the API call
-      const result = await Promise.race([
-        model.generateContent(feedbackPrompt),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout')), 8000) // 8 second timeout
-        )
-      ]) as any;
-      
-      const responseText = result.response.text().trim();
+      // OPTIMIZATION 4: Add timeout to the API call with proper error handling
+      let result: any;
+      try {
+        result = await Promise.race([
+          model.generateContent(feedbackPrompt),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout')), 8000) // 8 second timeout
+          )
+        ]);
+      } catch (timeoutError) {
+        console.log('AI feedback generation timed out, using fallback feedback');
+        result = null; // Set result to null to trigger fallback
+      }
       
       let feedbackData: any;
-      try {
-        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-        feedbackData = JSON.parse(jsonMatch ? jsonMatch[0] : '{}');
-      } catch {
-        // OPTIMIZATION 5: Fallback feedback without AI call
+      if (result && result.response) {
+        try {
+          const responseText = result.response.text().trim();
+          const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+          feedbackData = JSON.parse(jsonMatch ? jsonMatch[0] : '{}');
+        } catch {
+          // If JSON parsing fails, use fallback
+          result = null;
+        }
+      }
+      
+      // Use fallback feedback if AI call failed or timed out
+      if (!result || !result.response) {
         feedbackData = {
           shortFeedback: fluencyScore >= 5 
             ? "You did well in this conversation! Your communication was clear and engaging. Keep practicing to build even more confidence."

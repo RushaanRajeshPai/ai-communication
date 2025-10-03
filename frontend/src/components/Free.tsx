@@ -216,7 +216,7 @@ const Free: React.FC = () => {
         console.log('Handling silence timeout');
         handleSilence();
       }
-    }, 2000);
+    }, 2000); // Changed from 1000 to 2000 (2 seconds)
   };
 
   const handleSilence = () => {
