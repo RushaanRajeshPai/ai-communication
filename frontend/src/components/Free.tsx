@@ -40,6 +40,8 @@ const Free: React.FC = () => {
     const [metrics, setMetrics] = useState<Metrics | null>(null);
     const [showDetailedReport, setShowDetailedReport] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [analysisComplete, setAnalysisComplete] = useState(false);
+    const [feedbackComplete, setFeedbackComplete] = useState(false);
 
     const socketRef = useRef<Socket | null>(null);
     const recognitionRef = useRef<any>(null);
@@ -279,6 +281,8 @@ const Free: React.FC = () => {
         }
 
         setShowFeedbackAvatar(true);
+        setAnalysisComplete(false);
+        setFeedbackComplete(false);
         setFeedbackData({
             shortFeedback: "Processing your conversation...",
             detailedFeedback: {
@@ -295,6 +299,11 @@ const Free: React.FC = () => {
             durationMinutes: 0
         });
 
+        // Complete analysis after 2 seconds
+        setTimeout(() => {
+            setAnalysisComplete(true);
+        }, 2000);
+
         try {
             const response = await fetch(`http://localhost:5000/api/free/feedback/${conversationId}`);
             const data = await response.json();
@@ -302,6 +311,7 @@ const Free: React.FC = () => {
             if (response.ok) {
                 setMetrics(data.metrics);
                 setFeedbackData(data.feedback);
+                setFeedbackComplete(true);
 
                 const feedbackText = data.feedback.shortFeedback;
                 if ('speechSynthesis' in window) {
@@ -341,6 +351,8 @@ const Free: React.FC = () => {
 
         handleConversationEnded();
     };
+
+    
 
     if (error) {
         return (
@@ -412,10 +424,10 @@ const Free: React.FC = () => {
                     </div>
 
                     <button
-                        onClick={() => window.location.href = '/dashboard'}
+                        onClick={() => window.location.href = '/free-topic'}
                         className="mt-8 w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition"
                     >
-                        Return to Dashboard
+                        Have another conversation
                     </button>
                 </div>
             </div>
@@ -423,26 +435,83 @@ const Free: React.FC = () => {
     }
 
     if (showFeedbackAvatar && feedbackData && metrics) {
+        // Show loading screen if feedback is not complete
+        if (!feedbackComplete) {
+            return (
+                <div className="w-screen min-h-screen flex flex-col items-center justify-center p-4" style={{ background: "linear-gradient(135deg, rgb(27, 31, 46) 0%, rgb(20, 24, 38) 50%, rgb(15, 18, 30) 100%)" }}>
+                    <div className="bg-gradient-to-b from-gray-800 to-black rounded-xl shadow-2xl p-12 max-w-2xl">
+                        <h2 className="text-3xl font-bold text-center text-cyan-400 mb-12">
+                            Processing Your Conversation
+                        </h2>
+
+                        <div className="space-y-8">
+                            {/* Step 1: Analyzing conversation */}
+                            <div className="flex items-center gap-4">
+                                <div className="flex-shrink-0 w-8 h-8">
+                                    {analysisComplete ? (
+                                        <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                                            <svg className="w-5 h-5 text-white" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path d="M5 13l4 4L19 7"></path>
+                                            </svg>
+                                        </div>
+                                    ) : (
+                                        <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                                    )}
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-lg font-semibold text-white">Analyzing your conversation</p>
+                                </div>
+                            </div>
+
+                            {/* Step 2: Generating feedback */}
+                            <div className="flex items-center gap-4">
+                                <div className="flex-shrink-0 w-8 h-8">
+                                    {feedbackComplete ? (
+                                        <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                                            <svg className="w-5 h-5 text-white" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path d="M5 13l4 4L19 7"></path>
+                                            </svg>
+                                        </div>
+                                    ) : analysisComplete ? (
+                                        <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                                    ) : (
+                                        <div className="w-8 h-8 border-4 border-gray-300 rounded-full"></div>
+                                    )}
+                                </div>
+                                <div className="flex-1">
+                                    <p className={`text-lg font-semibold ${analysisComplete ? 'text-white' : 'text-gray-400'}`}>
+                                        Generating a detailed feedback and report
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Show feedback avatar after processing is complete
         return (
-            <div className="w-screen min-h-screen bg-gradient-to-br from-violet-50 to-indigo-100 flex flex-col items-center justify-center p-4">
+            <div className="w-screen min-h-screen flex flex-col items-center justify-center p-4" style={{ background: "linear-gradient(135deg, rgb(27, 31, 46) 0%, rgb(20, 24, 38) 50%, rgb(15, 18, 30) 100%)" }}>
                 <AIAvatar
                     isSpeaking={isSpeaking}
                     currentText={feedbackData.shortFeedback}
                 />
 
                 <div className="mt-8 text-center">
-                    <p className="text-2xl font-bold text-gray-800 mb-4">
-                        {metrics.fluencyScore >= 5 ? '😊 Great Job!' : '😔 Keep Practicing'}
-                    </p>
-                    <p className="text-lg text-gray-600 max-w-2xl">
-                        {feedbackData.shortFeedback}
+                    <p className="text-2xl font-bold text-white mb-4">
+                        {metrics.fluencyScore >= 5 ? '😊 You have fared well!' : '😔 There is room for improvement, keep practicing!'}
                     </p>
                 </div>
 
                 {!isSpeaking && (
                     <button
                         onClick={() => setShowDetailedReport(true)}
-                        className="mt-8 bg-indigo-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-indigo-700 transition shadow-lg"
+                        className="mt-4 text-white px-8 py-3 rounded-lg font-semibold hover:scale-105 transition shadow-lg"
+                        style={{
+                            background: 'linear-gradient(135deg, rgb(13, 148, 136) 0%, rgb(37, 99, 235) 100%)',
+                            boxShadow: '0 10px 30px rgba(37, 99, 235, 0.3)'
+                          }}
                     >
                         View Full Report
                     </button>
