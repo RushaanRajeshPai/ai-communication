@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, PhoneOff, CircleHelp } from 'lucide-react';
+import { Mic, PhoneOff, CircleHelp, MicOff } from 'lucide-react';
 import io, { Socket } from 'socket.io-client';
 import AIAvatar from './AIAvatar';
 import whitelogo from "../assets/whitelogo.png";
@@ -44,7 +44,7 @@ const Free: React.FC = () => {
     const socketRef = useRef<Socket | null>(null);
     const recognitionRef = useRef<any>(null);
     const silenceTimerRef = useRef<number | null>(null);
-    const conversationIdRef = useRef<string | null>(null); // Add this line
+    const conversationIdRef = useRef<string | null>(null);
 
     const speechSynthesisRef = useRef<SpeechSynthesisUtterance | null>(null);
 
@@ -73,7 +73,7 @@ const Free: React.FC = () => {
                 if (response.ok) {
                     console.log('Setting conversationId to:', data.conversationId);
                     setConversationId(data.conversationId);
-                    conversationIdRef.current = data.conversationId; // Add this line
+                    conversationIdRef.current = data.conversationId;
                     setUserInfo(data.userInfo);
 
                     // Initialize WebSocket
@@ -155,7 +155,6 @@ const Free: React.FC = () => {
 
                 if (finalTranscript) {
                     console.log('Final transcript received:', finalTranscript);
-                    // Send immediately when we get a final result
                     sendMessage(finalTranscript);
                     setCurrentText('');
                 } else {
@@ -167,7 +166,6 @@ const Free: React.FC = () => {
             recognition.onerror = (event: any) => {
                 console.error('Speech recognition error:', event.error);
                 if (event.error === 'no-speech' && hasReceivedResult) {
-                    // Only handle no-speech if we actually received some results
                     console.log('No speech detected after receiving results');
                 }
             };
@@ -175,15 +173,12 @@ const Free: React.FC = () => {
             recognition.onend = () => {
                 console.log('Speech recognition ended');
                 if (isConversationActive && !isSpeaking) {
-                    // If we have a final transcript, it was already sent in onresult
-                    // Only restart if we don't have a final result
                     if (!finalTranscript && hasReceivedResult) {
                         console.log('Sending interim transcript on end');
                         sendMessage(currentText);
                         setCurrentText('');
                     }
 
-                    // Restart recognition
                     setTimeout(() => {
                         if (isConversationActive && !isSpeaking) {
                             console.log('Restarting speech recognition');
@@ -208,16 +203,14 @@ const Free: React.FC = () => {
         silenceTimerRef.current = setTimeout(() => {
             console.log('Silence timer fired. Current text:', currentText);
             if (isListening && currentText.trim()) {
-                // User spoke and there's transcribed text - send it automatically
                 console.log('Sending message after silence:', currentText);
                 sendMessage(currentText);
                 setCurrentText('');
             } else if (isConversationActive && !isSpeaking && !currentText.trim()) {
-                // No text detected - handle silence
                 console.log('Handling silence timeout');
                 handleSilence();
             }
-        }, 2000); // Changed from 1000 to 2000 (2 seconds)
+        }, 2000);
     };
 
     const handleSilence = () => {
@@ -232,7 +225,6 @@ const Free: React.FC = () => {
         console.log('Current conversationId (ref):', conversationIdRef.current);
         console.log('Socket exists:', !!socketRef.current);
 
-        // Use the ref value which is always current
         const currentConversationId = conversationIdRef.current;
 
         if (socketRef.current && currentConversationId && message.trim()) {
@@ -251,7 +243,6 @@ const Free: React.FC = () => {
         setIsSpeaking(true);
         setCurrentText(data.text);
 
-        // Use Web Speech API for TTS
         if ('speechSynthesis' in window) {
             const utterance = new SpeechSynthesisUtterance(data.text);
             utterance.rate = 1.0;
@@ -287,7 +278,6 @@ const Free: React.FC = () => {
             recognitionRef.current.stop();
         }
 
-        // Show loading state immediately
         setShowFeedbackAvatar(true);
         setFeedbackData({
             shortFeedback: "Processing your conversation...",
@@ -313,7 +303,6 @@ const Free: React.FC = () => {
                 setMetrics(data.metrics);
                 setFeedbackData(data.feedback);
 
-                // Speak short feedback
                 const feedbackText = data.feedback.shortFeedback;
                 if ('speechSynthesis' in window) {
                     const utterance = new SpeechSynthesisUtterance(feedbackText);
@@ -463,7 +452,7 @@ const Free: React.FC = () => {
     }
 
     return (
-        <div className="w-screen min-h-screen flex flex-col items-center justify-center p-4" style={{ background: "linear-gradient(135deg, rgb(27, 31, 46) 0%, rgb(20, 24, 38) 50%, rgb(15, 18, 30) 100%)" }}>
+        <div className="w-screen min-h-screen flex flex-col" style={{ background: "linear-gradient(135deg, rgb(27, 31, 46) 0%, rgb(20, 24, 38) 50%, rgb(15, 18, 30) 100%)" }}>
             <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md" style={{ backgroundColor: "rgba(27, 31, 46, 0.8)", borderBottom: "1px solid rgba(255, 255, 255, 0.1)" }}>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-20">
@@ -475,88 +464,102 @@ const Free: React.FC = () => {
                     </div>
                 </div>
             </nav>
-            <div className="bg-gradient-to-b from-gray-800 to-black rounded-2xl p-8 px-12 mb-8 max-w-2xl flex flex-col items-center justify-center mt-24">
-                {!isConversationActive ? (
-                    <div className="text-center items-center">
-                        <h1 className="text-5xl font-bold text-cyan-400 mb-4">
-                            Greetings, {userInfo?.fullname || 'there'}!
-                        </h1>
-                        <p className="text-2xl text-gray-300 mb-8">
-                            Wish to have a conversation with me?
-                        </p>
-                        <div className="space-y-4 w-full">
-                            <div className="flex items-start space-x-4">
-                                <CircleHelp className="w-6 h-6 text-cyan-400 flex-shrink-0" />
-                                <div>
-                                    <h3 className="font-semibold text-xl text-cyan-400">How this would work</h3>
+            
+            {!isConversationActive ? (
+                <div className="flex items-center justify-center flex-1 p-4 mt-20">
+                    <div className="bg-gradient-to-b from-gray-800 to-black rounded-2xl p-8 px-12 max-w-2xl">
+                        <div className="text-center items-center">
+                            <h1 className="text-5xl font-bold text-cyan-400 mb-4">
+                                Greetings, {userInfo?.fullname || 'there'}!
+                            </h1>
+                            <p className="text-2xl text-gray-300 mb-8">
+                                Wish to have a conversation with me?
+                            </p>
+                            <div className="space-y-4 w-full">
+                                <div className="flex items-start space-x-4">
+                                    <CircleHelp className="w-6 h-6 text-cyan-400 flex-shrink-0" />
+                                    <div>
+                                        <h3 className="font-semibold text-xl text-cyan-400">How this would work</h3>
+                                    </div>
                                 </div>
-                            </div>
-                            <ul className="text-gray-300 space-y-2 text-lg">
-                                <ul className="text-gray-300 space-y-2 pl-12 text-lg">
-                                    <li className="flex gap-3"><span className="text-cyan-400">•</span>You can speak to me on any topic of your choice</li>
-                                    <li className="flex gap-3"><span className="text-cyan-400">•</span>I will respond back to you, like a natural conversation</li>
-                                    <li className="flex gap-3"><span className="text-cyan-400">•</span>This is a free-flowing speech, no need to submit audio</li>
-                                    <li className="flex gap-3"><span className="text-cyan-400">•</span>You can end the conversation at any given time</li>
-                                    <li className="flex gap-3"><span className="text-cyan-400">•</span>You will get an audio feedback on your speaking</li>
-                                    <li className="flex gap-3"><span className="text-cyan-400">•</span>You will also get an AI-generated performance report</li>
+                                <ul className="text-gray-300 space-y-2 text-lg">
+                                    <ul className="text-gray-300 space-y-2 pl-12 text-lg">
+                                        <li className="flex gap-3"><span className="text-cyan-400">•</span>You can speak to me on any topic of your choice</li>
+                                        <li className="flex gap-3"><span className="text-cyan-400">•</span>I will respond back to you, like a natural conversation</li>
+                                        <li className="flex gap-3"><span className="text-cyan-400">•</span>This is a free-flowing speech, no need to submit audio</li>
+                                        <li className="flex gap-3"><span className="text-cyan-400">•</span>You can end the conversation at any given time</li>
+                                        <li className="flex gap-3"><span className="text-cyan-400">•</span>You will get an audio feedback on your speaking</li>
+                                        <li className="flex gap-3"><span className="text-cyan-400">•</span>You will also get an AI-generated performance report</li>
+                                    </ul>
                                 </ul>
 
-                            </ul>
-
-                            <div className="flex flex-col items-center pt-4">
-                                <button
-                                    onClick={startConversation}
-                                    className="text-white px-12 py-4 rounded-full font-semibold text-lg hover:scale-105 transition shadow-lg flex items-center gap-3"
-                                    style={{
-                                        background: 'linear-gradient(135deg, rgb(13, 148, 136) 0%, rgb(37, 99, 235) 100%)',
-                                        boxShadow: '0 10px 30px rgba(37, 99, 235, 0.3)'
-                                    }}
-                                >
-                                    <Mic size={24} />
-                                    Start the Conversation
-                                </button>
+                                <div className="flex flex-col items-center pt-4">
+                                    <button
+                                        onClick={startConversation}
+                                        className="text-white px-12 py-4 rounded-full font-semibold text-lg hover:scale-105 transition shadow-lg flex items-center gap-3"
+                                        style={{
+                                            background: 'linear-gradient(135deg, rgb(13, 148, 136) 0%, rgb(37, 99, 235) 100%)',
+                                            boxShadow: '0 10px 30px rgba(37, 99, 235, 0.3)'
+                                        }}
+                                    >
+                                        <Mic size={24} />
+                                        Start the Conversation
+                                    </button>
+                                </div>
                             </div>
-
                         </div>
                     </div>
-                ) : (
-                    <div className="flex flex-col items-center">
+                </div>
+            ) : (
+                <div className="flex-1 relative flex items-center justify-center -mt-12">
+                    {/* Main AI Avatar in center */}
+                    <div className="relative w-full h-full flex items-center justify-center">
+                        {/* AI Mute indicator - shows when user is speaking */}
+                        {isListening && !isSpeaking && (
+                            <div className="absolute top-64 bg-gray-900 bg-opacity-80 rounded-full p-3 z-10">
+                                <MicOff className="w-6 h-6 text-red-500" />
+                            </div>
+                        )}
+                        
                         <AIAvatar
                             isSpeaking={isSpeaking}
                             currentText={currentText}
                         />
+                    </div>
 
-                        <div className="mt-8 text-center">
-                            {isListening && (
-                                <div className="flex items-center gap-2 justify-center mb-4">
-                                    <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-                                    <p className="text-lg text-gray-700 font-semibold">Listening...</p>
-                                </div>
-                            )}
-
+                    {/* User video box - bottom right corner */}
+                    <div className="absolute bottom-28 right-6 w-64 h-48 bg-gray-900 rounded-lg shadow-2xl overflow-hidden border-2 border-gray-700">
+                        <div className="relative w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
+                            {/* User avatar/placeholder */}
+                            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white text-3xl font-bold">
+                                {userInfo?.fullname?.charAt(0).toUpperCase() || 'U'}
+                            </div>
+                            
+                            {/* User name label */}
+                            <div className="absolute bottom-3 left-3 bg-gray-900 bg-opacity-70 px-3 py-1 rounded text-white text-sm">
+                                {userInfo?.fullname || 'You'}
+                            </div>
+                            
+                            {/* User mute indicator - shows when AI is speaking */}
                             {isSpeaking && (
-                                <p className="text-lg text-indigo-600 font-semibold mb-4">
-                                    AI is speaking...
-                                </p>
-                            )}
-
-                            {currentText && (
-                                <div className="bg-white rounded-lg shadow-lg p-6 max-w-2xl mb-6">
-                                    <p className="text-gray-700 text-lg">{currentText}</p>
+                                <div className="absolute top-4 right-3 bg-red-600 bg-opacity-90 rounded-full p-2">
+                                    <MicOff className="w-4 h-4 text-white" />
                                 </div>
                             )}
                         </div>
+                    </div>
 
+                    {/* Bottom control bar */}
+                    <div className="absolute bottom-2 left-0 right-0 bg-gray-900 bg-opacity-90 py-3 flex items-center justify-center">
                         <button
                             onClick={endConversation}
-                            className="mt-8 bg-red-500 text-white px-8 py-3 rounded-full font-semibold hover:bg-red-600 transition shadow-lg flex items-center gap-2"
+                            className="bg-red-600 hover:scale-105 text-white p-4 rounded-full transition shadow-lg"
                         >
-                            <PhoneOff size={20} />
-                            End Conversation
+                            <PhoneOff size={24} />
                         </button>
                     </div>
-                )}
-            </div>
+                </div>
+            )}
         </div>
     );
 };
