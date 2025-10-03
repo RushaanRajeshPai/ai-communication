@@ -9,6 +9,7 @@ import freetopicRoutes from "./routes/storyRoutes";
 import interviewRoutes from "./routes/interviewRoutes";
 import gdRoutes from "./routes/gdRoutes";
 import freeRoutes from "./routes/freeRoutes";
+import dashboardRoutes from "./routes/dashboardRoutes";
 import { handleFreeConversationMessage, handleSilenceTimeout } from "./controllers/freeController";
 
 const app = express();
@@ -17,7 +18,7 @@ const server = http.createServer(app);
 // Initialize Socket.IO
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:3000", "http://localhost:5173"], // Add both ports
+    origin: ["http://localhost:3000", "http://localhost:5173"],
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -34,7 +35,8 @@ app.use("/api/users", userRoutes);
 app.use("/api/freetopic", freetopicRoutes);
 app.use("/api/interview", interviewRoutes);
 app.use("/api/gd", gdRoutes);
-app.use("/api/free", freeRoutes); // Add this line
+app.use("/api/free", freeRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 // WebSocket event handlers
 io.on("connection", (socket) => {

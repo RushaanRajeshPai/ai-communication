@@ -6,6 +6,7 @@ import Story from './components/Story';
 import Interview from './components/Interview';
 import Gd from './components/Gd';
 import Footer from './components/Footer';
+import Dashboard from './components/Dashboard'
 import footer from './assets/footer.png';
 import whitelogo from './assets/whitelogo.png';
 
@@ -19,6 +20,7 @@ function App() {
         <Route path="/storytelling" element={<Story />} />
         <Route path="/interview" element={<Interview />} />
         <Route path="/gd" element={<Gd />} />
+        <Route path="/dashboard" element={<Dashboard />} />
       </Routes>
       <Footer
         whitelogo={whitelogo}
