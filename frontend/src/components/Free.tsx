@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, PhoneOff, CircleHelp, MicOff } from 'lucide-react';
+import { Mic, PhoneOff, CircleHelp, MicOff, X, Check } from 'lucide-react';
 import io, { Socket } from 'socket.io-client';
 import AIAvatar from './AIAvatar';
 import whitelogo from "../assets/whitelogo.png";
@@ -367,68 +367,98 @@ const Free: React.FC = () => {
 
     if (showDetailedReport && feedbackData && metrics) {
         return (
-            <div className="w-screen min-h-screen bg-gradient-to-br from-violet-50 to-indigo-100 p-8">
-                <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-2xl p-8">
-                    <h1 className="text-4xl font-bold text-center mb-8 text-indigo-600">
-                        Conversation Report
-                    </h1>
-
-                    <div className="grid grid-cols-2 gap-6 mb-8">
-                        <div className="bg-indigo-50 rounded-lg p-6">
-                            <h3 className="text-lg font-semibold text-gray-700 mb-2">Fluency Score</h3>
-                            <p className="text-4xl font-bold text-indigo-600">{metrics.fluencyScore}/10</p>
-                        </div>
-                        <div className="bg-indigo-50 rounded-lg p-6">
-                            <h3 className="text-lg font-semibold text-gray-700 mb-2">Confidence</h3>
-                            <p className="text-2xl font-bold text-indigo-600 capitalize">{metrics.confidenceCategory}</p>
-                        </div>
-                        <div className="bg-indigo-50 rounded-lg p-6">
-                            <h3 className="text-lg font-semibold text-gray-700 mb-2">Speaking Rate</h3>
-                            <p className="text-2xl font-bold text-indigo-600">{metrics.rateOfSpeech} wpm</p>
-                        </div>
-                        <div className="bg-indigo-50 rounded-lg p-6">
-                            <h3 className="text-lg font-semibold text-gray-700 mb-2">Duration</h3>
-                            <p className="text-2xl font-bold text-indigo-600">{metrics.durationMinutes.toFixed(1)} min</p>
+            <div className="w-screen min-h-screen text-white relative overflow-hidden" style={{ background: "linear-gradient(135deg, rgb(27, 31, 46) 0%, rgb(20, 24, 38) 50%, rgb(15, 18, 30) 100%)" }}>
+                <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md" style={{ backgroundColor: "rgba(27, 31, 46, 0.8)", borderBottom: "1px solid rgba(255, 255, 255, 0.1)" }}>
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="flex items-center justify-between h-20">
+                            <div className="flex-shrink-0">
+                                <div className="w-32 rounded-lg flex items-center justify-center" style={{ backgroundColor: "rgba(255, 255, 255, 0.05)" }}>
+                                    <img src={whitelogo} alt="" />
+                                </div>
+                            </div>
                         </div>
                     </div>
+                </nav>
 
-                    <div className="mb-8">
-                        <h2 className="text-2xl font-bold text-gray-800 mb-4">Strengths</h2>
-                        <ul className="space-y-2">
-                            {feedbackData.detailedFeedback.strengths.map((strength, idx) => (
-                                <li key={idx} className="flex items-start">
-                                    <span className="text-green-500 mr-2">✓</span>
-                                    <span className="text-gray-700">{strength}</span>
-                                </li>
-                            ))}
-                        </ul>
+                <div className="relative z-10 container mx-auto px-4 py-8 md:py-16">
+                    <div className="max-w-6xl mx-auto space-y-8 pb-12">
+                        <h1 className="text-3xl md:text-4xl font-bold text-center mt-12 mb-8">Your Conversation Analysis</h1>
+
+                        {/* Metrics Cards */}
+                        <div className="bg-gradient-to-b from-gray-800 to-black rounded-2xl p-6 md:p-8">
+                            <h2 className="text-2xl font-bold text-center mb-8">Performance Metrics</h2>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div className="bg-blue-600/20 rounded-lg p-4 text-center">
+                                    <div className="text-3xl font-bold">{metrics.rateOfSpeech}</div>
+                                    <div className="text-sm text-gray-300">Words/Min</div>
+                                </div>
+                                <div className="bg-purple-600/20 rounded-lg p-4 text-center">
+                                    <div className="text-3xl font-bold">{metrics.fluencyScore}/10</div>
+                                    <div className="text-sm text-gray-300">Fluency</div>
+                                </div>
+                                <div className="bg-green-600/20 rounded-lg p-4 text-center">
+                                    <div className="text-3xl font-bold capitalize">{metrics.confidenceCategory}</div>
+                                    <div className="text-sm text-gray-300">Confidence</div>
+                                </div>
+                                <div className="bg-orange-600/20 rounded-lg p-4 text-center">
+                                    <div className="text-3xl font-bold">{metrics.fillerWordCount}</div>
+                                    <div className="text-sm text-gray-300">Filler Words</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Feedback Section */}
+                        <div className="grid md:grid-cols-2 gap-6">
+                            <div className="bg-green-900/30 backdrop-blur-lg rounded-2xl p-6 border border-green-500/30">
+                                <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                                    <Check className="text-green-400" />
+                                    What You Did Well
+                                </h3>
+                                <ul className="space-y-3">
+                                    {feedbackData.detailedFeedback.strengths.map((point, i) => (
+                                        <li key={i} className="flex gap-3">
+                                            <span className="text-green-400 font-bold">•</span>
+                                            <span>{point}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+
+                            <div className="bg-orange-900/30 backdrop-blur-lg rounded-2xl p-6 border border-orange-500/30">
+                                <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                                    <X className="text-red-400" />
+                                    Areas for Improvement
+                                </h3>
+                                <ul className="space-y-3">
+                                    {feedbackData.detailedFeedback.improvements.map((point, i) => (
+                                        <li key={i} className="flex gap-3">
+                                            <span className="text-red-400 font-bold">•</span>
+                                            <span>{point}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
+
+                        {/* Overall Assessment */}
+                        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 md:p-8 border border-white/20">
+                            <h3 className="text-2xl font-bold mb-4">Overall Assessment</h3>
+                            <div className="bg-black/30 rounded-lg p-4">
+                                <p className="text-gray-300 leading-relaxed">
+                                    {feedbackData.detailedFeedback.overallAssessment}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-center">
+                            <button
+                                onClick={() => window.location.href = '/free-topic'}
+                                className="px-8 py-4 bg-blue-600 hover:bg-blue-700 rounded-lg text-lg font-semibold transition-all transform hover:scale-105"
+                            >
+                                Have Another Conversation
+                            </button>
+                        </div>
                     </div>
-
-                    <div className="mb-8">
-                        <h2 className="text-2xl font-bold text-gray-800 mb-4">Areas for Improvement</h2>
-                        <ul className="space-y-2">
-                            {feedbackData.detailedFeedback.improvements.map((improvement, idx) => (
-                                <li key={idx} className="flex items-start">
-                                    <span className="text-amber-500 mr-2">→</span>
-                                    <span className="text-gray-700">{improvement}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-
-                    <div className="bg-gray-50 rounded-lg p-6">
-                        <h2 className="text-2xl font-bold text-gray-800 mb-4">Overall Assessment</h2>
-                        <p className="text-gray-700 leading-relaxed">
-                            {feedbackData.detailedFeedback.overallAssessment}
-                        </p>
-                    </div>
-
-                    <button
-                        onClick={() => window.location.href = '/free-topic'}
-                        className="mt-8 w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition"
-                    >
-                        Have another conversation
-                    </button>
                 </div>
             </div>
         );
