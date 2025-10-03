@@ -203,7 +203,7 @@ const Free: React.FC = () => {
       clearTimeout(silenceTimerRef.current);
     }
 
-    console.log('Setting silence timer for 4 seconds');
+    console.log('Setting silence timer for 2 seconds');
     silenceTimerRef.current = setTimeout(() => {
       console.log('Silence timer fired. Current text:', currentText);
       if (isListening && currentText.trim()) {
@@ -216,7 +216,7 @@ const Free: React.FC = () => {
         console.log('Handling silence timeout');
         handleSilence();
       }
-    }, 4000);
+    }, 2000);
   };
 
   const handleSilence = () => {
@@ -286,6 +286,24 @@ const Free: React.FC = () => {
       recognitionRef.current.stop();
     }
 
+    // Show loading state immediately
+    setShowFeedbackAvatar(true);
+    setFeedbackData({
+      shortFeedback: "Processing your conversation...",
+      detailedFeedback: {
+        strengths: [],
+        improvements: [],
+        overallAssessment: "Analyzing your performance..."
+      }
+    });
+    setMetrics({
+      fluencyScore: 0,
+      rateOfSpeech: 0,
+      confidenceCategory: "monotone",
+      fillerWordCount: 0,
+      durationMinutes: 0
+    });
+
     try {
       const response = await fetch(`http://localhost:5000/api/free/feedback/${conversationId}`);
       const data = await response.json();
@@ -293,7 +311,6 @@ const Free: React.FC = () => {
       if (response.ok) {
         setMetrics(data.metrics);
         setFeedbackData(data.feedback);
-        setShowFeedbackAvatar(true);
         
         // Speak short feedback
         const feedbackText = data.feedback.shortFeedback;

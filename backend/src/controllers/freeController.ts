@@ -193,36 +193,39 @@ export const endFreeConversation = async (conversationId: string) => {
         confidenceCategory = "hesitant";
       }
 
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
-      const conversationSummary = conversation.history.slice(0, 20).map(msg =>
+      // OPTIMIZATION 1: Use a faster, lighter model for feedback generation
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); // Faster than gemini-2.5-pro
+      
+      // OPTIMIZATION 2: Reduce the conversation summary length
+      const conversationSummary = conversation.history.slice(0, 10).map(msg => // Reduced from 20 to 10
         `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
       ).join('\n');
 
-      const feedbackPrompt = `Analyze this free-form conversation and provide brief feedback.
+      // OPTIMIZATION 3: Simplified feedback prompt
+      const feedbackPrompt = `Provide brief feedback for a conversation.
 
-User: ${user.fullname}, ${user.age} years old, ${user.gender}, ${user.role}
+User: ${user.fullname}, ${user.age} years old, ${user.role}
 
-Conversation excerpt:
-${conversationSummary}
-
-Metrics:
-- Word count: ${wordCount}
-- Rate of speech: ${rateOfSpeech} words/min
-- Filler words: ${fillerWordCount}
-- Fluency score: ${fluencyScore}/10
-- Duration: ${durationMinutes.toFixed(2)} minutes
+Metrics: ${wordCount} words, ${rateOfSpeech} WPM, ${fillerWordCount} fillers, Fluency ${fluencyScore}/10
 
 Provide feedback in JSON format:
 {
-  "shortFeedback": "3 brief sentences for audio playback (encouraging tone)",
+  "shortFeedback": "2 brief sentences (encouraging tone)",
   "detailedFeedback": {
     "strengths": ["strength1", "strength2"],
     "improvements": ["improvement1", "improvement2"],
-    "overallAssessment": "brief paragraph"
+    "overallAssessment": "brief assessment"
   }
 }`;
 
-      const result = await model.generateContent(feedbackPrompt);
+      // OPTIMIZATION 4: Add timeout to the API call
+      const result = await Promise.race([
+        model.generateContent(feedbackPrompt),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout')), 8000) // 8 second timeout
+        )
+      ]) as any;
+      
       const responseText = result.response.text().trim();
       
       let feedbackData: any;
@@ -230,6 +233,7 @@ Provide feedback in JSON format:
         const jsonMatch = responseText.match(/\{[\s\S]*\}/);
         feedbackData = JSON.parse(jsonMatch ? jsonMatch[0] : '{}');
       } catch {
+        // OPTIMIZATION 5: Fallback feedback without AI call
         feedbackData = {
           shortFeedback: fluencyScore >= 5 
             ? "You did well in this conversation! Your communication was clear and engaging. Keep practicing to build even more confidence."
@@ -254,25 +258,32 @@ Provide feedback in JSON format:
         }
       };
 
-      user.recordings.push(recording);
-      
-      user.overall.totalDuration = user.recordings.reduce((sum, rec) => sum + rec.durationMinutes, 0);
-      user.overall.avgRateOfSpeech = Math.round(
-        user.recordings.reduce((sum, rec) => sum + rec.feedback.rateOfSpeech, 0) / user.recordings.length
-      );
-      user.overall.avgFluencyScore = Math.round(
-        user.recordings.reduce((sum, rec) => sum + rec.feedback.fluencyScore, 0) / user.recordings.length
-      );
-      user.overall.totalFillerWords = user.recordings.reduce((sum, rec) => sum + rec.fillerWordCount, 0);
+      // OPTIMIZATION 6: Save to database asynchronously (don't wait for it)
+      setImmediate(async () => {
+        try {
+          user.recordings.push(recording);
+          
+          user.overall.totalDuration = user.recordings.reduce((sum, rec) => sum + rec.durationMinutes, 0);
+          user.overall.avgRateOfSpeech = Math.round(
+            user.recordings.reduce((sum, rec) => sum + rec.feedback.rateOfSpeech, 0) / user.recordings.length
+          );
+          user.overall.avgFluencyScore = Math.round(
+            user.recordings.reduce((sum, rec) => sum + rec.feedback.fluencyScore, 0) / user.recordings.length
+          );
+          user.overall.totalFillerWords = user.recordings.reduce((sum, rec) => sum + rec.fillerWordCount, 0);
 
-      const confidenceCounts = { monotone: 0, confident: 0, hesitant: 0 } as Record<string, number>;
-      user.recordings.forEach(rec => {
-        confidenceCounts[rec.feedback.confidenceCategory]++;
+          const confidenceCounts = { monotone: 0, confident: 0, hesitant: 0 } as Record<string, number>;
+          user.recordings.forEach(rec => {
+            confidenceCounts[rec.feedback.confidenceCategory]++;
+          });
+          const maxCategory = Object.entries(confidenceCounts).reduce((a, b) => a[1] > b[1] ? a : b)[0];
+          user.overall.avgConfidence = maxCategory;
+
+          await user.save();
+        } catch (err) {
+          console.error('Error saving user data:', err);
+        }
       });
-      const maxCategory = Object.entries(confidenceCounts).reduce((a, b) => a[1] > b[1] ? a : b)[0];
-      user.overall.avgConfidence = maxCategory;
-
-      await user.save();
 
       conversations.delete(conversationId);
 
