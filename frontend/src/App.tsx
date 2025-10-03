@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Auth from "./components/Auth";
 import Scenario from "./components/Scenario";
+import Free from './components/Free'
 import Story from './components/Story';
 import Interview from './components/Interview';
 import Gd from './components/Gd';
@@ -14,6 +15,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Auth />} />
         <Route path="/scenario" element={<Scenario />} />
+        <Route path="/free-topic" element={<Free />} />
         <Route path="/storytelling" element={<Story />} />
         <Route path="/interview" element={<Interview />} />
         <Route path="/gd" element={<Gd />} />
