@@ -136,7 +136,7 @@ export const generateBotResponse = async (req: Request, res: Response) => {
       ? recentHistory.map(msg => `${msg.speaker}: ${msg.text}`).join("\n") 
       : "No previous conversation";
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     let prompt = "";
 
@@ -506,7 +506,7 @@ export const endDiscussion = async (req: Request, res: Response) => {
       durationMinutes: userDurationMinutes
     });
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const prompt = `You are an expert group discussion evaluator.
 

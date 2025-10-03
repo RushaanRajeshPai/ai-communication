@@ -286,7 +286,7 @@ export const processInterview = async (req: Request, res: Response) => {
     });
 
     console.log("Generating AI feedback...");
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     // Create prompt with interview context
     const questionsText = questions.map((q: string, i: number) => `Q${i + 1}: ${q}`).join("\n");

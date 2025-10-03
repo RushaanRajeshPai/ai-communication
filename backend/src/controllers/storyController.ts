@@ -310,7 +310,7 @@ export const processRecording = async (req: Request, res: Response) => {
          durationMinutes
        });
        console.log("Generating AI feedback...");
-       const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
+       const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
    
        const prompt = `
    You are an expert communication coach. Analyze the following narrated story with detailed audio and speech metrics.

@@ -26,7 +26,167 @@ interface Metrics {
     confidenceCategory: string;
     fillerWordCount: number;
     durationMinutes: number;
+    vocabularyScore: number; // Add vocabulary score
 }
+
+const PentagonChart = ({ metrics }: { metrics: Metrics }) => {
+    const confidenceScore =
+      metrics.confidenceCategory === "confident" ? 8 :
+        metrics.confidenceCategory === "monotone" ? 5 : 3;
+    const fillerScore = Math.max(0, 10 - metrics.fillerWordCount);
+    const rateScore = Math.min(10, Math.max(0, (metrics.rateOfSpeech / 150) * 10));
+
+    const points = [
+      { label: "Rate of Speech", value: rateScore, tooltip: `Speech Rate: ${metrics.rateOfSpeech} WPM` },
+      { label: "Confidence", value: confidenceScore, tooltip: `Confidence: ${metrics.confidenceCategory}` },
+      { label: "Filler Words", value: fillerScore, tooltip: `Filler Words: ${metrics.fillerWordCount}` },
+      { label: "Vocabulary", value: metrics.vocabularyScore, tooltip: `Vocabulary Score: ${metrics.vocabularyScore}/10` },
+      { label: "Fluency", value: metrics.fluencyScore, tooltip: `Fluency Score: ${metrics.fluencyScore}/10` }
+    ];
+
+    const size = 450;
+    const center = size / 2;
+    const radius = size / 2 - 90;
+    const angleStep = (Math.PI * 2) / points.length;
+
+    const calculatePoint = (index: number, value: number) => {
+      const angle = angleStep * index - Math.PI / 2;
+      const r = (value / 10) * radius;
+      return {
+        x: center + r * Math.cos(angle),
+        y: center + r * Math.sin(angle),
+      };
+    };
+
+    const dataPoints = points.map((p, i) => calculatePoint(i, p.value));
+    const maxPoints = points.map((_, i) => calculatePoint(i, 10));
+    const pathData = dataPoints.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ") + " Z";
+    const maxPathData = maxPoints
+      .map((point, i) => `${i === 0 ? "M" : "L"} ${point.x} ${point.y}`)
+      .join(" ") + " Z";
+
+    const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
+    return (
+      <div className="flex flex-col items-center relative">
+        <svg width={size} height={size} className="mb-4">
+          <defs>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+              <feMerge>
+                <feMergeNode in="coloredBlur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+            <linearGradient id="tooltipGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.8" />
+              <stop offset="100%" stopColor="#60a5fa" stopOpacity="0.8" />
+            </linearGradient>
+          </defs>
+
+          <path d={maxPathData} fill="none" stroke="rgba(71, 85, 105, 0.5)" strokeWidth="2" />
+
+          {maxPoints.map((point, i) => (
+            <line
+              key={i}
+              x1={center}
+              y1={center}
+              x2={point.x}
+              y2={point.y}
+              stroke="rgba(40, 50, 65, 0.5)"
+              strokeWidth="2"
+            />
+          ))}
+
+          {[0.33, 0.66, 1].map((scale, idx) => {
+            const ringPoints = points.map((_, i) => calculatePoint(i, 10 * scale));
+            const ringPath = ringPoints.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ") + " Z";
+            return (
+              <path
+                key={idx}
+                d={ringPath}
+                fill="rgba(148, 163, 184, 0.1)"
+                stroke="rgba(40, 50, 65, 0.5)"
+                strokeWidth="2"
+              />
+            );
+          })}
+
+          <path
+            d={pathData}
+            fill="rgba(96, 165, 250, 0.4)"
+            stroke="#3b82f6"
+            strokeWidth="2.5"
+            filter="url(#glow)"
+          />
+
+          {dataPoints.map((point, i) => (
+            <g
+              key={i}
+              onMouseEnter={() => setHoveredIndex(i)}
+              onMouseLeave={() => setHoveredIndex(null)}
+              style={{ cursor: "pointer" }}
+            >
+              <circle cx={point.x} cy={point.y} r="6" fill="#1e3a8a" opacity="0.5" />
+              <circle cx={point.x} cy={point.y} r="4" fill="#60a5fa" filter="url(#glow)" />
+
+              {hoveredIndex === i && (
+                <g>
+                  <rect
+                    x={point.x + 12}
+                    y={point.y - 28}
+                    width={170}
+                    height={28}
+                    rx={6}
+                    fill="url(#tooltipGradient)"
+                    stroke="#ffffff55"
+                    strokeWidth={1}
+                  />
+                  <text
+                    x={point.x + 18}
+                    y={point.y - 10}
+                    fill="white"
+                    fontSize="13"
+                    fontWeight="bold"
+                    style={{ pointerEvents: "none" }}
+                  >
+                    {points[i].tooltip}
+                  </text>
+                </g>
+              )}
+            </g>
+          ))}
+
+          {maxPoints.map((point, i) => {
+            const angle = angleStep * i - Math.PI / 2;
+            const cos = Math.cos(angle);
+            const sin = Math.sin(angle);
+            const labelR = radius + 35;
+            const labelX = center + labelR * cos;
+            const labelY = center + labelR * sin;
+
+            const adjustedX = i === 1 ? labelX + 12 : labelX;
+            const adjustedY = i === 0 ? labelY + 8 : labelY;
+
+            return (
+              <text
+                key={i}
+                x={adjustedX}
+                y={adjustedY}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                className="text-base font-medium"
+                fill="#cbd5e1"
+                style={{ letterSpacing: "0.5px" }}
+              >
+                {points[i].label}
+              </text>
+            );
+          })}
+        </svg>
+      </div>
+    );
+  };
 
 const Free: React.FC = () => {
     const [conversationId, setConversationId] = useState<string | null>(null);
@@ -296,7 +456,8 @@ const Free: React.FC = () => {
             rateOfSpeech: 0,
             confidenceCategory: "monotone",
             fillerWordCount: 0,
-            durationMinutes: 0
+            durationMinutes: 0,
+            vocabularyScore: 0  
         });
 
         // Complete analysis after 2 seconds
@@ -384,10 +545,11 @@ const Free: React.FC = () => {
                     <div className="max-w-6xl mx-auto space-y-8 pb-12">
                         <h1 className="text-3xl md:text-4xl font-bold text-center mt-12 mb-8">Your Conversation Analysis</h1>
 
-                        {/* Metrics Cards */}
+                        {/* Pentagon Chart */}
                         <div className="bg-gradient-to-b from-gray-800 to-black rounded-2xl p-6 md:p-8">
-                            <h2 className="text-2xl font-bold text-center mb-8">Performance Metrics</h2>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <h2 className="text-2xl font-bold text-center">Performance Insights</h2>
+                            <PentagonChart metrics={metrics} />
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 -mt-12">
                                 <div className="bg-blue-600/20 rounded-lg p-4 text-center">
                                     <div className="text-3xl font-bold">{metrics.rateOfSpeech}</div>
                                     <div className="text-sm text-gray-300">Words/Min</div>
@@ -398,7 +560,7 @@ const Free: React.FC = () => {
                                 </div>
                                 <div className="bg-green-600/20 rounded-lg p-4 text-center">
                                     <div className="text-3xl font-bold capitalize">{metrics.confidenceCategory}</div>
-                                    <div className="text-sm text-gray-300">Confidence</div>
+                                    <div className="text-sm text-gray-300">Confidence Category</div>
                                 </div>
                                 <div className="bg-orange-600/20 rounded-lg p-4 text-center">
                                     <div className="text-3xl font-bold">{metrics.fillerWordCount}</div>

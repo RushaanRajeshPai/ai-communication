@@ -81,7 +81,7 @@ Guidelines:
       `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
     ).join('\n');
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const prompt = `${systemPrompt}\n\nConversation so far:\n${conversationContext}\n\nRespond naturally to the user's last message.`;
 
     const result = await model.generateContent(prompt);
@@ -154,7 +154,6 @@ export const endFreeConversation = async (conversationId: string) => {
       .map(msg => msg.content)
       .join(' ');
 
-    // Only save recording if there's actual user content
     if (fullTranscript.trim()) {
       const words = fullTranscript.trim().split(/\s+/);
       const wordCount = words.length;
@@ -199,10 +198,12 @@ export const endFreeConversation = async (conversationId: string) => {
         `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`
       ).join('\n');
 
-      // OPTIMIZATION 3: Simplified feedback prompt
+      // OPTIMIZATION 3: Enhanced feedback prompt with vocabulary analysis
       const feedbackPrompt = `Provide brief feedback for a conversation.
 
 User: ${user.fullname}, ${user.age} years old, ${user.role}
+
+Conversation: "${fullTranscript}"
 
 Metrics: ${wordCount} words, ${rateOfSpeech} WPM, ${fillerWordCount} fillers, Fluency ${fluencyScore}/10
 
@@ -213,6 +214,11 @@ Provide feedback in JSON format:
     "strengths": ["strength1", "strength2"],
     "improvements": ["improvement1", "improvement2"],
     "overallAssessment": "brief assessment"
+  },
+  "vocabularyAnalysis": {
+    "sophisticatedWords": ["word1", "word2", "word3"],
+    "vocabularyScore": 8.5,
+    "reasoning": "Brief explanation of vocabulary assessment"
   }
 }`;
 
@@ -252,9 +258,44 @@ Provide feedback in JSON format:
             strengths: ["Completed the conversation", "Engaged with the AI"],
             improvements: ["Reduce filler words", "Improve speaking pace"],
             overallAssessment: "A good effort overall."
+          },
+          vocabularyAnalysis: {
+            sophisticatedWords: [],
+            vocabularyScore: 5.0,
+            reasoning: "Unable to analyze vocabulary due to parsing error"
           }
         };
       }
+
+      // Extract vocabulary score from AI analysis
+      let vocabularyScore = 5.0; // Default fallback
+      if (feedbackData.vocabularyAnalysis && feedbackData.vocabularyAnalysis.vocabularyScore) {
+        vocabularyScore = Math.max(1, Math.min(10, feedbackData.vocabularyAnalysis.vocabularyScore));
+      }
+
+      // If AI provided sophisticated words, use them for additional validation
+      if (feedbackData.vocabularyAnalysis && feedbackData.vocabularyAnalysis.sophisticatedWords) {
+        const sophisticatedWords: string[] = feedbackData.vocabularyAnalysis.sophisticatedWords;
+        const vocabWords = fullTranscript.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/);
+        
+        // Count how many sophisticated words were actually used
+        const sophisticatedWordCount = sophisticatedWords.filter((word: string) => 
+          vocabWords.includes(word.toLowerCase())
+        ).length;
+        
+        // Calculate ratio of sophisticated words to total words
+        const sophisticatedRatio = sophisticatedWordCount / Math.max(vocabWords.length, 1);
+        
+        // Apply scaling factor that rewards longer, well-articulated responses
+        const scalingFactor = Math.min(12, Math.max(8, vocabWords.length / 15));
+        const calculatedScore = Math.min(10, sophisticatedRatio * scalingFactor * 10);
+        
+        // Use the higher of AI score or calculated score (with 70% weight to AI assessment)
+        vocabularyScore = (feedbackData.vocabularyAnalysis.vocabularyScore * 0.7) + (calculatedScore * 0.3);
+      }
+
+      // Ensure vocabulary score is within bounds
+      vocabularyScore = Math.max(1, Math.min(10, Math.round(vocabularyScore * 10) / 10));
 
       const recording = {
         scenario: "Free Conversation",
@@ -304,7 +345,8 @@ Provide feedback in JSON format:
           rateOfSpeech,
           confidenceCategory,
           fillerWordCount,
-          durationMinutes: parseFloat(durationMinutes.toFixed(2))
+          durationMinutes: parseFloat(durationMinutes.toFixed(2)),
+          vocabularyScore
         },
         feedback: feedbackData
       };
@@ -319,7 +361,8 @@ Provide feedback in JSON format:
           rateOfSpeech: 0,
           confidenceCategory: "hesitant" as const,
           fillerWordCount: 0,
-          durationMinutes: 0
+          durationMinutes: 0,
+          vocabularyScore: 0
         },
         feedback: {
           shortFeedback: "Thanks for trying out the conversation feature. Feel free to start a new conversation when you're ready to practice speaking!",
